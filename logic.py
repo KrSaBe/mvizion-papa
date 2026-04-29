@@ -1,5 +1,6 @@
 import os
 import threading
+import logging
 from datetime import datetime
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -8,6 +9,7 @@ import gspread
 import numpy as np
 import pandas as pd
 import streamlit as st
+from gspread.exceptions import APIError, SpreadsheetNotFound
 
 
 # --- Google Sheets (remplace l'ancien CSV) ---
@@ -65,26 +67,82 @@ MONTHS_FR = {
 
 _sheet_lock = threading.RLock()
 _gspread_client: gspread.Client | None = None
+LOGGER = logging.getLogger("mvizion.logic")
+
+
+def _show_google_error(message: str, technical: str = "") -> None:
+    st.error(message)
+    if technical:
+        st.caption(f"Détail technique: {technical}")
+    st.stop()
+
+
+def _handle_google_exception(exc: Exception, context: str) -> None:
+    LOGGER.exception("Google Sheets error during %s", context)
+    technical = f"{type(exc).__name__}: {exc}"
+    if isinstance(exc, RuntimeError):
+        _show_google_error(
+            "Configuration Streamlit Secrets invalide ou incomplète. Vérifie `MVIZION_GOOGLE_SHEET_ID` et la section `[gcp_service_account]`.",
+            technical,
+        )
+    if isinstance(exc, SpreadsheetNotFound):
+        _show_google_error(
+            "Google Sheet introuvable (404) ou inaccessible. Vérifie l'ID du sheet et le partage au compte de service.",
+            technical,
+        )
+    if isinstance(exc, APIError):
+        status = getattr(getattr(exc, "response", None), "status_code", None)
+        if status == 403:
+            _show_google_error(
+                "Erreur de permissions Google (403 Forbidden). Partage le sheet avec le `client_email` du compte de service en Éditeur.",
+                technical,
+            )
+        if status == 404:
+            _show_google_error(
+                "Google Sheet introuvable (404 Not Found). Vérifie `MVIZION_GOOGLE_SHEET_ID`.",
+                technical,
+            )
+        _show_google_error(
+            "Échec API Google Sheets. Vérifie les secrets Streamlit, l'ID du sheet et les autorisations.",
+            technical,
+        )
+    _show_google_error(
+        "Connexion Google Sheets impossible. Vérifie les secrets Streamlit et les permissions du compte de service.",
+        technical,
+    )
 
 
 def _service_account_dict_from_secrets() -> dict[str, Any]:
-    if "gcp_service_account" not in st.secrets:
-        raise RuntimeError(
-            "Secrets Streamlit : ajouter la section [gcp_service_account] dans .streamlit/secrets.toml "
-            "(champs du JSON compte de service)."
-        )
-    section = st.secrets["gcp_service_account"]
-    return {str(k): section[k] for k in section}
+    try:
+        if "gcp_service_account" not in st.secrets:
+            raise RuntimeError(
+                "Secrets Streamlit : ajouter la section [gcp_service_account] dans .streamlit/secrets.toml "
+                "(champs du JSON compte de service)."
+            )
+        section = st.secrets["gcp_service_account"]
+        payload = {str(k): section[k] for k in section}
+        required = {"type", "project_id", "private_key", "client_email", "token_uri"}
+        missing = [k for k in required if not str(payload.get(k, "")).strip()]
+        if missing:
+            raise RuntimeError(f"Champs secrets manquants: {', '.join(missing)}")
+        return payload
+    except Exception as exc:
+        _handle_google_exception(exc, "load_service_account_secrets")
+        raise
 
 
 def _spreadsheet_id() -> str:
-    sid = str(st.secrets.get("MVIZION_GOOGLE_SHEET_ID", "")).strip()
-    if not sid or sid == "METS_TON_ID_ICI":
-        raise RuntimeError(
-            "Secrets Streamlit : definir MVIZION_GOOGLE_SHEET_ID dans .streamlit/secrets.toml "
-            "(ID du tableur, segment entre /d/ et /edit dans l'URL)."
-        )
-    return sid
+    try:
+        sid = str(st.secrets.get("MVIZION_GOOGLE_SHEET_ID", "")).strip()
+        if not sid or sid == "METS_TON_ID_ICI":
+            raise RuntimeError(
+                "Secrets Streamlit : definir MVIZION_GOOGLE_SHEET_ID dans .streamlit/secrets.toml "
+                "(ID du tableur, segment entre /d/ et /edit dans l'URL)."
+            )
+        return sid
+    except Exception as exc:
+        _handle_google_exception(exc, "load_sheet_id")
+        raise
 
 
 def _worksheet_title() -> str:
@@ -101,19 +159,27 @@ def _accounts_worksheet_title() -> str:
 
 def _get_client() -> gspread.Client:
     global _gspread_client
-    if _gspread_client is None:
-        info = _service_account_dict_from_secrets()
-        _gspread_client = gspread.service_account_from_dict(info)
-    return _gspread_client
+    try:
+        if _gspread_client is None:
+            info = _service_account_dict_from_secrets()
+            _gspread_client = gspread.service_account_from_dict(info)
+        return _gspread_client
+    except Exception as exc:
+        _handle_google_exception(exc, "create_gspread_client")
+        raise
 
 
 def _open_worksheet(title: str, default_rows: int = 2000) -> gspread.Worksheet:
-    gc = _get_client()
-    sh = gc.open_by_key(_spreadsheet_id())
     try:
-        return sh.worksheet(title)
-    except gspread.WorksheetNotFound:
-        return sh.add_worksheet(title=title, rows=default_rows, cols=max(len(COLUMNS), 26))
+        gc = _get_client()
+        sh = gc.open_by_key(_spreadsheet_id())
+        try:
+            return sh.worksheet(title)
+        except gspread.WorksheetNotFound:
+            return sh.add_worksheet(title=title, rows=default_rows, cols=max(len(COLUMNS), 26))
+    except Exception as exc:
+        _handle_google_exception(exc, f"open_worksheet:{title}")
+        raise
 
 
 def _open_trades_worksheet() -> gspread.Worksheet:
