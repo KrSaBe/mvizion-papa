@@ -494,7 +494,12 @@ with st.sidebar:
     )
     st.markdown("---")
     st.header("Importer depuis TradingView")
-    uploaded_file = st.file_uploader("Importer un fichier TradingView", type=["csv"], key="tv_import")
+    uploaded_file = st.file_uploader(
+        "Importer un fichier TradingView",
+        type=["csv"],
+        key="tv_import",
+        help="1GB per file",
+    )
     if uploaded_file is not None:
         try:
             raw_df = pd.read_csv(uploaded_file)
@@ -599,6 +604,7 @@ if page == "Nouveau Trade":
             "Capture d'écran du graphique",
             type=["png", "jpg", "jpeg"],
             key="trade_graph_screenshot",
+            help="1GB per file",
         )
         submit = st.form_submit_button("Ajouter Trade", use_container_width=True)
     if submit:
