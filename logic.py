@@ -1,0 +1,601 @@
+import os
+import threading
+from datetime import datetime
+from typing import Any
+from zoneinfo import ZoneInfo
+
+import gspread
+import numpy as np
+import pandas as pd
+import streamlit as st
+
+
+# --- Google Sheets (remplace l'ancien CSV) ---
+# Configuration exclusivement via Streamlit secrets (.streamlit/secrets.toml) :
+#   MVIZION_GOOGLE_SHEET_ID : ID du tableur (URL entre /d/ et /edit)
+#   MVIZION_GOOGLE_WORKSHEET : (optionnel) nom de l'onglet, defaut "Trades"
+#   [gcp_service_account] : champs du JSON compte de service Google (type, project_id, ...)
+#
+# Partage : le compte service (client_email) doit etre invite en "Editeur" sur le tableur.
+
+COLUMNS = [
+    "Date",
+    "Actif",
+    "Type",
+    "Prix Entree",
+    "Prix Sortie",
+    "Quantite",
+    "Frais",
+    "Profit",
+    "Sortie",
+    "Session",
+    "Etat Mental",
+    "Biais Jour",
+    "Compte",
+    "Compte_Type",
+    "Sizing_Score",
+    "SL_Score",
+    "Revenge_Score",
+    "Overtrading_Score",
+    "Bias_Score",
+    "High_Water_Mark",
+    "Image",
+]
+
+# Compatibilite : l'ancienne constante (plus utilisee pour la persistance)
+CSV_FILE = "trades_papa.csv"
+
+MONTHS_FR = {
+    1: "Jan",
+    2: "Fev",
+    3: "Mar",
+    4: "Avr",
+    5: "Mai",
+    6: "Jun",
+    7: "Jul",
+    8: "Aou",
+    9: "Sep",
+    10: "Oct",
+    11: "Nov",
+    12: "Dec",
+}
+
+_sheet_lock = threading.Lock()
+_gspread_client: gspread.Client | None = None
+
+
+def _service_account_dict_from_secrets() -> dict[str, Any]:
+    if "gcp_service_account" not in st.secrets:
+        raise RuntimeError(
+            "Secrets Streamlit : ajouter la section [gcp_service_account] dans .streamlit/secrets.toml "
+            "(champs du JSON compte de service)."
+        )
+    section = st.secrets["gcp_service_account"]
+    return {str(k): section[k] for k in section}
+
+
+def _spreadsheet_id() -> str:
+    sid = str(st.secrets.get("MVIZION_GOOGLE_SHEET_ID", "")).strip()
+    if not sid or sid == "METS_TON_ID_ICI":
+        raise RuntimeError(
+            "Secrets Streamlit : definir MVIZION_GOOGLE_SHEET_ID dans .streamlit/secrets.toml "
+            "(ID du tableur, segment entre /d/ et /edit dans l'URL)."
+        )
+    return sid
+
+
+def _worksheet_title() -> str:
+    if "MVIZION_GOOGLE_WORKSHEET" in st.secrets:
+        t = str(st.secrets["MVIZION_GOOGLE_WORKSHEET"] or "").strip()
+        if t:
+            return t
+    return "Trades"
+
+
+def _get_client() -> gspread.Client:
+    global _gspread_client
+    if _gspread_client is None:
+        info = _service_account_dict_from_secrets()
+        _gspread_client = gspread.service_account_from_dict(info)
+    return _gspread_client
+
+
+def _open_worksheet() -> gspread.Worksheet:
+    gc = _get_client()
+    sh = gc.open_by_key(_spreadsheet_id())
+    title = _worksheet_title()
+    try:
+        return sh.worksheet(title)
+    except gspread.WorksheetNotFound:
+        return sh.add_worksheet(title=title, rows=2000, cols=max(len(COLUMNS), 26))
+
+
+def _values_to_dataframe(header: list[str], rows: list[list[Any]]) -> pd.DataFrame:
+    if not rows:
+        return pd.DataFrame(columns=COLUMNS)
+    header = [str(h).strip() for h in header]
+    width = max(len(header), max((len(r) for r in rows), default=0))
+    header = (header + [""] * width)[:width]
+    norm_rows: list[list[Any]] = []
+    for r in rows:
+        row = list(r) + [""] * (width - len(r))
+        norm_rows.append(row[:width])
+    df = pd.DataFrame(norm_rows, columns=header[:width])
+    for col in COLUMNS:
+        if col not in df.columns:
+            df[col] = _default_for_column(col)
+    return df.reindex(columns=COLUMNS)
+
+
+def _cell_value(v: Any) -> Any:
+    if v is None:
+        return ""
+    if isinstance(v, float) and np.isnan(v):
+        return ""
+    if isinstance(v, pd.Timestamp):
+        return v.strftime("%Y-%m-%d")
+    return v
+
+
+def _dataframe_to_sheet_values(df: pd.DataFrame) -> list[list[Any]]:
+    out = df.copy()
+    out["Date"] = pd.to_datetime(out["Date"], errors="coerce")
+    out["Date"] = out["Date"].dt.strftime("%Y-%m-%d")
+    for c in COLUMNS:
+        if c not in out.columns:
+            out[c] = _default_for_column(c)
+    out = out[COLUMNS]
+    body: list[list[Any]] = []
+    for _, row in out.iterrows():
+        body.append([_cell_value(row[c]) for c in COLUMNS])
+    return [COLUMNS] + body
+
+
+def _read_sheet_dataframe() -> pd.DataFrame:
+    ws = _open_worksheet()
+    raw = ws.get_all_values()
+    if not raw:
+        return pd.DataFrame(columns=COLUMNS)
+    header, *data_rows = raw
+    if not header or all(str(c).strip() == "" for c in header):
+        return pd.DataFrame(columns=COLUMNS)
+    df = _values_to_dataframe(header, data_rows)
+    return df
+
+
+def _write_sheet_dataframe(df: pd.DataFrame) -> None:
+    ws = _open_worksheet()
+    values = _dataframe_to_sheet_values(df)
+    ws.clear()
+    last_col = _a1_column(len(COLUMNS))
+    last_row = max(1, len(values))
+    ws.update(values, range_name=f"A1:{last_col}{last_row}", value_input_option="USER_ENTERED", raw=False)
+
+
+def _a1_column(n: int) -> str:
+    """1 -> A, 26 -> Z, 27 -> AA."""
+    s = ""
+    while n:
+        n, r = divmod(n - 1, 26)
+        s = chr(65 + r) + s
+    return s
+
+
+def _default_for_column(col: str) -> Any:
+    numeric_cols = {
+        "Prix Entree",
+        "Prix Sortie",
+        "Quantite",
+        "Frais",
+        "Profit",
+        "Sizing_Score",
+        "SL_Score",
+        "Revenge_Score",
+        "Overtrading_Score",
+        "Bias_Score",
+        "High_Water_Mark",
+    }
+    if col in numeric_cols:
+        return 0.0
+    if col == "Sortie":
+        return "TP"
+    if col == "Etat Mental":
+        return "Neutre"
+    if col == "Biais Jour":
+        return "Haussier"
+    if col == "Compte":
+        return "Compte 1"
+    if col == "Compte_Type":
+        return "Eval"
+    if col == "Type":
+        return "Buy"
+    if col == "Session":
+        return "London"
+    if col == "Image":
+        return ""
+    return ""
+
+
+def ensure_csv_exists() -> None:
+    """Initialise l'onglet Google Sheet (en-tetes COLUMNS) et migre les colonnes manquantes."""
+    with _sheet_lock:
+        ws = _open_worksheet()
+        raw = ws.get_all_values()
+        if not raw:
+            ws.update(
+                [COLUMNS],
+                range_name=f"A1:{_a1_column(len(COLUMNS))}1",
+                value_input_option="USER_ENTERED",
+                raw=False,
+            )
+            return
+        header = [str(h).strip() for h in raw[0]]
+        if header == COLUMNS:
+            return
+        data_rows = raw[1:] if len(raw) > 1 else []
+        df = _values_to_dataframe(header, data_rows)
+        for col in COLUMNS:
+            if col not in df.columns:
+                df[col] = _default_for_column(col)
+        df = df[COLUMNS]
+        df = _apply_high_water_mark(df)
+        _write_sheet_dataframe(df)
+
+
+def _postprocess_loaded_df(df: pd.DataFrame) -> pd.DataFrame:
+    if df.empty:
+        return df
+    df = df.copy()
+    df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+    for col in [
+        "Prix Entree",
+        "Prix Sortie",
+        "Quantite",
+        "Frais",
+        "Profit",
+        "Sizing_Score",
+        "SL_Score",
+        "Revenge_Score",
+        "Overtrading_Score",
+        "Bias_Score",
+        "High_Water_Mark",
+    ]:
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+
+    for col in ["Actif", "Type", "Sortie", "Session", "Etat Mental", "Biais Jour", "Compte", "Compte_Type", "Image"]:
+        if col not in df.columns:
+            df[col] = ""
+        df[col] = df[col].astype(str).fillna("")
+
+    df = df.dropna(subset=["Date", "Prix Entree", "Prix Sortie", "Quantite", "Frais", "Profit"])
+    return df.sort_values("Date").reset_index(drop=True)
+
+
+def load_trades() -> pd.DataFrame:
+    ensure_csv_exists()
+    with _sheet_lock:
+        df = _read_sheet_dataframe()
+    return _postprocess_loaded_df(df)
+
+
+def save_screenshot(uploaded_file: Any, trade_id: str) -> str:
+    """Enregistre une capture dans assets/screenshots/ ; retourne le chemin relatif ou ""."""
+    if uploaded_file is None:
+        return ""
+    safe_id = "".join(c for c in str(trade_id) if c.isalnum() or c in "._-") or "trade"
+    orig_name = getattr(uploaded_file, "name", "") or ""
+    ext = os.path.splitext(orig_name)[1].lower()
+    if ext not in {".png", ".jpg", ".jpeg"}:
+        ext = ".png"
+    dir_path = os.path.join("assets", "screenshots")
+    os.makedirs(dir_path, exist_ok=True)
+    filename = f"trade_{safe_id}{ext}"
+    full_path = os.path.join(dir_path, filename)
+    rel_path = os.path.join("assets", "screenshots", filename).replace("\\", "/")
+    data = uploaded_file.getbuffer()
+    with open(full_path, "wb") as f:
+        f.write(data)
+    return rel_path
+
+
+def save_trade(trade: dict[str, Any]) -> None:
+    if not str(trade.get("Session", "")).strip():
+        trade["Session"] = get_trading_session()
+    row = {col: trade.get(col, _default_for_column(col)) for col in COLUMNS}
+    with _sheet_lock:
+        df = _read_sheet_dataframe()
+        df = pd.concat([df, pd.DataFrame([row])], ignore_index=True)
+        df = _apply_high_water_mark(df)
+        df = df.sort_values("Date", na_position="last").reset_index(drop=True)
+        df = df[COLUMNS]
+        _write_sheet_dataframe(df)
+
+
+def append_trades(trades_to_add: pd.DataFrame) -> int:
+    if trades_to_add.empty:
+        return 0
+    with _sheet_lock:
+        current = _read_sheet_dataframe()
+        merged = pd.concat([current, trades_to_add[COLUMNS]], ignore_index=True)
+        merged = _apply_high_water_mark(merged)
+        merged = merged.sort_values("Date", na_position="last").reset_index(drop=True)
+        merged = merged[COLUMNS]
+        _write_sheet_dataframe(merged)
+    return int(len(trades_to_add))
+
+
+def delete_trade_by_position(position: int) -> None:
+    """Supprime la ligne a l'index ``position`` dans le journal trie par date (meme ordre que load_trades)."""
+    with _sheet_lock:
+        df = _read_sheet_dataframe()
+        if df.empty:
+            return
+        df = _postprocess_loaded_df(df)
+        if 0 <= position < len(df):
+            df = df.drop(index=position).reset_index(drop=True)
+            df = _apply_high_water_mark(df)
+            df = df.sort_values("Date", na_position="last").reset_index(drop=True)
+            df = df[COLUMNS]
+            _write_sheet_dataframe(df)
+
+
+def find_column(columns: list[str], candidates: list[str]) -> str | None:
+    lowered = {col.lower().strip(): col for col in columns}
+    for candidate in candidates:
+        if candidate in lowered:
+            return lowered[candidate]
+    return None
+
+
+def convert_tradingview_to_mvizion(import_df: pd.DataFrame) -> pd.DataFrame:
+    if import_df.empty:
+        return pd.DataFrame(columns=COLUMNS)
+
+    cols = [str(c) for c in import_df.columns]
+    col_date = find_column(cols, ["date", "time", "timestamp", "open time", "close time"])
+    col_symbol = find_column(cols, ["symbol", "ticker", "instrument", "asset", "actif"])
+    col_open = find_column(cols, ["open price", "entry price", "open", "buy price", "prix entree"])
+    col_close = find_column(cols, ["close price", "exit price", "close", "sell price", "prix sortie"])
+    col_price = find_column(cols, ["price", "avg price", "fill price"])
+    col_qty = find_column(cols, ["qty", "quantity", "size", "contracts", "quantite"])
+    col_fee = find_column(cols, ["fee", "fees", "commission", "commissions", "frais"])
+    col_profit = find_column(cols, ["profit", "pnl", "net profit", "realized pnl", "result"])
+    col_side = find_column(cols, ["type", "side", "direction"])
+    col_session = find_column(cols, ["session"])
+
+    if col_date is None or col_symbol is None:
+        return pd.DataFrame(columns=COLUMNS)
+
+    out = pd.DataFrame()
+    out["Date"] = pd.to_datetime(import_df[col_date], errors="coerce")
+    out["Actif"] = import_df[col_symbol].astype(str).str.strip().str.upper()
+    out["Type"] = import_df[col_side].astype(str).str.title() if col_side else "Buy"
+    out["Prix Entree"] = pd.to_numeric(import_df[col_open], errors="coerce") if col_open else None
+    out["Prix Sortie"] = pd.to_numeric(import_df[col_close], errors="coerce") if col_close else None
+    if col_price:
+        price_series = pd.to_numeric(import_df[col_price], errors="coerce")
+        out["Prix Entree"] = out["Prix Entree"].fillna(price_series) if col_open else price_series
+        out["Prix Sortie"] = out["Prix Sortie"].fillna(price_series) if col_close else price_series
+    out["Prix Entree"] = pd.to_numeric(out["Prix Entree"], errors="coerce").fillna(0.0)
+    out["Prix Sortie"] = pd.to_numeric(out["Prix Sortie"], errors="coerce").fillna(0.0)
+    out["Quantite"] = pd.to_numeric(import_df[col_qty], errors="coerce").fillna(1.0) if col_qty else 1.0
+    out["Frais"] = pd.to_numeric(import_df[col_fee], errors="coerce").fillna(0.0) if col_fee else 0.0
+
+    if col_profit:
+        out["Profit"] = pd.to_numeric(import_df[col_profit], errors="coerce")
+    else:
+        out["Profit"] = (out["Prix Sortie"] - out["Prix Entree"]) * out["Quantite"] - out["Frais"]
+
+    out["Sortie"] = "TP"
+    out["Session"] = import_df[col_session].astype(str).str.upper() if col_session else get_trading_session()
+    out["Etat Mental"] = "Neutre"
+    out["Biais Jour"] = "Haussier"
+    out["Compte"] = "Compte 1"
+    out["Compte_Type"] = "Eval"
+    out["Sizing_Score"] = 0.0
+    out["SL_Score"] = 0.0
+    out["Revenge_Score"] = 0.0
+    out["Overtrading_Score"] = 0.0
+    out["Bias_Score"] = 0.0
+    out["High_Water_Mark"] = 0.0
+    out["Image"] = ""
+    out["Date"] = out["Date"].dt.strftime("%Y-%m-%d")
+    out = out.dropna(subset=["Date", "Actif", "Profit"])
+    out["Profit"] = pd.to_numeric(out["Profit"], errors="coerce")
+    out = out.dropna(subset=["Profit"])
+    return out[COLUMNS]
+
+
+def _etat_mental_tvs_points(etat: str) -> float:
+    e = str(etat).strip()
+    if e in ("Calme", "Concentre", "Confiant"):
+        return 10.0
+    if e == "Neutre":
+        return 5.0
+    if e in ("Frustre", "Anxieux", "Fatigue"):
+        return 0.0
+    return 0.0
+
+
+def infer_mental_state(
+    sizing_score: float,
+    sl_score: float,
+    revenge_score: float,
+    overtrading_score: float,
+    bias_score: float,
+) -> str:
+    # Score global 0-20
+    score = (sizing_score + sl_score + (20 - revenge_score) + (20 - overtrading_score) + bias_score) / 5.0
+    if score >= 16:
+        return "Calme"
+    if score >= 13:
+        return "Confiant"
+    if score >= 10:
+        return "Neutre"
+    if score >= 7:
+        return "Anxieux"
+    return "Frustre"
+
+
+def get_trading_session() -> str:
+    now_paris = datetime.now(ZoneInfo("Europe/Paris"))
+    hour = now_paris.hour
+    # Fenetres Forex standards approx en heure de Paris
+    if 0 <= hour < 8:
+        return "ASIA"
+    if 8 <= hour < 14:
+        return "LONDON"
+    if 14 <= hour < 23:
+        return "NEW YORK"
+    return "OUT"
+
+
+def _normalize_session_name(value: str) -> str:
+    s = str(value).strip().upper()
+    if s in {"NEW YORK", "NY"}:
+        return "NY"
+    if s == "LONDON":
+        return "LONDON"
+    if s == "ASIA":
+        return "ASIA"
+    return "OUT"
+
+
+def _apply_high_water_mark(df: pd.DataFrame) -> pd.DataFrame:
+    if df.empty:
+        return df
+    working = df.copy()
+    working["Date"] = pd.to_datetime(working["Date"], errors="coerce")
+    working["Profit"] = pd.to_numeric(working["Profit"], errors="coerce").fillna(0.0)
+    working["Compte"] = working["Compte"].astype(str).fillna("Compte 1")
+    working = working.sort_values(["Compte", "Date"], na_position="last").reset_index(drop=True)
+    equity = working.groupby("Compte")["Profit"].cumsum()
+    high_water = equity.groupby(working["Compte"]).cummax()
+    working["High_Water_Mark"] = high_water
+    working = working.sort_index()
+    return working
+
+
+def compute_metrics(df: pd.DataFrame) -> dict[str, Any]:
+    empty = {
+        "net_pnl": 0.0,
+        "win_rate": 0.0,
+        "profit_factor": 0.0,
+        "avg_rr_reel": 0.0,
+        "sharpe_ratio": 0.0,
+        "discipline_score_moyen": 0.0,
+        "drawdown_actuel": 0.0,
+        "drawdown_pct": 0.0,
+        "sorties_tp": 0,
+        "sorties_tp_partiel": 0,
+        "sorties_sl": 0,
+        "profit_par_session": {"ASIA": 0.0, "LONDON": 0.0, "NY": 0.0},
+        "winrate_par_session": {"ASIA": 0.0, "LONDON": 0.0, "NY": 0.0},
+        "tvs_score": 0.0,
+    }
+    if df.empty:
+        return empty
+
+    profits = df["Profit"].astype(float)
+    net_pnl = float(profits.sum())
+    win_rate = float((profits > 0).mean() * 100.0)
+    wins = profits[profits > 0]
+    losses = profits[profits < 0]
+    gross_profit = float(wins.sum()) if not wins.empty else 0.0
+    gross_loss = float(losses.sum())
+    profit_factor = gross_profit / abs(gross_loss) if gross_loss != 0 else (gross_profit if gross_profit > 0 else 0.0)
+
+    sort_col = df["Sortie"].astype(str).str.strip()
+    sorties_tp = int((sort_col == "TP").sum())
+    sorties_tp_partiel = int((sort_col == "TP Partiel").sum())
+    sorties_sl = int((sort_col == "SL").sum())
+
+    avg_win = float(wins.mean()) if not wins.empty else 0.0
+    avg_loss_abs = float(losses.abs().mean()) if not losses.empty else 0.0
+    if avg_loss_abs > 0:
+        avg_rr_reel = avg_win / avg_loss_abs
+    elif avg_win > 0:
+        avg_rr_reel = 99.99
+    else:
+        avg_rr_reel = 0.0
+
+    # Sharpe Ratio simplifie
+    mean_profit = float(np.mean(profits))
+    std_profit = float(np.std(profits))
+    sharpe_ratio = mean_profit / std_profit if std_profit != 0 else 0.0
+
+    # Score de discipline (moyenne des 5 scores par trade, puis moyenne globale)
+    discipline_cols = ["Sizing_Score", "SL_Score", "Revenge_Score", "Overtrading_Score", "Bias_Score"]
+    discipline_df = df[discipline_cols].apply(pd.to_numeric, errors="coerce").fillna(0.0)
+    discipline_trade = discipline_df.mean(axis=1)
+    discipline_score_moyen = float(discipline_trade.mean()) if len(discipline_trade) else 0.0
+
+    perf_brut = (win_rate * 0.5) + (float(profit_factor) * 25.0)
+    perf_part = min(60.0, perf_brut)
+    mental_pts = df["Etat Mental"].astype(str).map(_etat_mental_tvs_points)
+    mental_moy = float(mental_pts.mean()) if len(mental_pts) else 0.0
+    psych_part = (mental_moy / 10.0) * 40.0
+    tvs_score = float(max(0.0, min(100.0, perf_part + psych_part)))
+
+    # Stats par session
+    session_df = df.copy()
+    session_df["SessionNorm"] = session_df["Session"].map(_normalize_session_name)
+    session_focus = session_df[session_df["SessionNorm"].isin(["ASIA", "LONDON", "NY"])]
+    profit_par_session = {"ASIA": 0.0, "LONDON": 0.0, "NY": 0.0}
+    winrate_par_session = {"ASIA": 0.0, "LONDON": 0.0, "NY": 0.0}
+    if not session_focus.empty:
+        for sess in ["ASIA", "LONDON", "NY"]:
+            s_df = session_focus[session_focus["SessionNorm"] == sess]
+            if not s_df.empty:
+                profit_par_session[sess] = float(s_df["Profit"].sum())
+                winrate_par_session[sess] = float((s_df["Profit"] > 0).mean() * 100.0)
+
+    # Trailing Drawdown par compte (stocke le sommet atteint par compte)
+    dd_df = _apply_high_water_mark(df.copy())
+    drawdown_map = {}
+    for compte, g in dd_df.groupby("Compte"):
+        g_sorted = g.sort_values("Date")
+        current_equity = float(g_sorted["Profit"].cumsum().iloc[-1]) if not g_sorted.empty else 0.0
+        peak = float(pd.to_numeric(g_sorted["High_Water_Mark"], errors="coerce").fillna(0.0).iloc[-1]) if not g_sorted.empty else 0.0
+        dd_abs = max(0.0, peak - current_equity)
+        dd_pct = (dd_abs / peak * 100.0) if peak > 0 else 0.0
+        drawdown_map[compte] = {"drawdown": dd_abs, "drawdown_pct": dd_pct}
+
+    if drawdown_map:
+        drawdown_actuel = max(v["drawdown"] for v in drawdown_map.values())
+        drawdown_pct = max(v["drawdown_pct"] for v in drawdown_map.values())
+    else:
+        drawdown_actuel = 0.0
+        drawdown_pct = 0.0
+
+    return {
+        "net_pnl": net_pnl,
+        "win_rate": win_rate,
+        "profit_factor": float(profit_factor),
+        "avg_rr_reel": float(avg_rr_reel),
+        "sharpe_ratio": float(sharpe_ratio),
+        "discipline_score_moyen": float(discipline_score_moyen),
+        "drawdown_actuel": float(drawdown_actuel),
+        "drawdown_pct": float(drawdown_pct),
+        "sorties_tp": sorties_tp,
+        "sorties_tp_partiel": sorties_tp_partiel,
+        "sorties_sl": sorties_sl,
+        "profit_par_session": profit_par_session,
+        "winrate_par_session": winrate_par_session,
+        "drawdown_par_compte": drawdown_map,
+        "tvs_score": tvs_score,
+    }
+
+
+def format_date_fr(value: pd.Timestamp | str) -> str:
+    ts = pd.to_datetime(value, errors="coerce")
+    if pd.isna(ts):
+        return "-"
+    return f"{ts.day:02d} {MONTHS_FR[int(ts.month)]} {ts.year}"
+
+
+def format_month_fr(value: pd.Timestamp | str) -> str:
+    ts = pd.to_datetime(value, errors="coerce")
+    if pd.isna(ts):
+        return "-"
+    return f"{MONTHS_FR[int(ts.month)]} {ts.year}"
