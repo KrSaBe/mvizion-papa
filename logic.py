@@ -67,6 +67,7 @@ MONTHS_FR = {
 
 _sheet_lock = threading.RLock()
 _gspread_client: gspread.Client | None = None
+_gspread_spreadsheet: gspread.Spreadsheet | None = None
 LOGGER = logging.getLogger("mvizion.logic")
 
 
@@ -110,6 +111,13 @@ def _handle_google_exception(exc: Exception, context: str) -> None:
         "Connexion Google Sheets impossible. Vérifie les secrets Streamlit et les permissions du compte de service.",
         technical,
     )
+
+
+def _clear_cached_reads() -> None:
+    try:
+        st.cache_data.clear()
+    except Exception:
+        LOGGER.exception("Impossible de vider le cache Streamlit")
 
 
 def _service_account_dict_from_secrets() -> dict[str, Any]:
@@ -169,10 +177,21 @@ def _get_client() -> gspread.Client:
         raise
 
 
+def _get_spreadsheet() -> gspread.Spreadsheet:
+    global _gspread_spreadsheet
+    try:
+        if _gspread_spreadsheet is None:
+            gc = _get_client()
+            _gspread_spreadsheet = gc.open_by_key(_spreadsheet_id())
+        return _gspread_spreadsheet
+    except Exception as exc:
+        _handle_google_exception(exc, "open_spreadsheet")
+        raise
+
+
 def _open_worksheet(title: str, default_rows: int = 2000) -> gspread.Worksheet:
     try:
-        gc = _get_client()
-        sh = gc.open_by_key(_spreadsheet_id())
+        sh = _get_spreadsheet()
         try:
             return sh.worksheet(title)
         except gspread.WorksheetNotFound:
@@ -353,6 +372,7 @@ def ensure_csv_exists() -> None:
         _write_sheet_dataframe(df)
 
 
+@st.cache_data(ttl=60, show_spinner=False)
 def load_accounts_from_sheet() -> pd.DataFrame:
     with _sheet_lock:
         ensure_csv_exists()
@@ -439,6 +459,7 @@ def upsert_account(name: str, objectif_pct: float, max_loss_usd: float) -> None:
             value_input_option="USER_ENTERED",
             raw=False,
         )
+    _clear_cached_reads()
 
 
 def delete_account(name: str) -> bool:
@@ -473,6 +494,7 @@ def delete_account(name: str) -> bool:
             value_input_option="USER_ENTERED",
             raw=False,
         )
+        _clear_cached_reads()
         return True
 
 
@@ -507,6 +529,7 @@ def _postprocess_loaded_df(df: pd.DataFrame) -> pd.DataFrame:
     return df.sort_values("Date").reset_index(drop=True)
 
 
+@st.cache_data(ttl=60, show_spinner=False)
 def load_trades() -> pd.DataFrame:
     ensure_csv_exists()
     with _sheet_lock:
@@ -545,6 +568,7 @@ def save_trade(trade: dict[str, Any]) -> None:
         df = df.sort_values("Date", na_position="last").reset_index(drop=True)
         df = df[COLUMNS]
         _write_sheet_dataframe(df)
+    _clear_cached_reads()
 
 
 def append_trades(trades_to_add: pd.DataFrame) -> int:
@@ -557,6 +581,7 @@ def append_trades(trades_to_add: pd.DataFrame) -> int:
         merged = merged.sort_values("Date", na_position="last").reset_index(drop=True)
         merged = merged[COLUMNS]
         _write_sheet_dataframe(merged)
+    _clear_cached_reads()
     return int(len(trades_to_add))
 
 
@@ -573,6 +598,7 @@ def delete_trade_by_position(position: int) -> None:
             df = df.sort_values("Date", na_position="last").reset_index(drop=True)
             df = df[COLUMNS]
             _write_sheet_dataframe(df)
+            _clear_cached_reads()
 
 
 def _normalize_col_name(value: str) -> str:
