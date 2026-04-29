@@ -375,6 +375,41 @@ def upsert_account(name: str, objectif_pct: float, max_loss_usd: float) -> None:
         )
 
 
+def delete_account(name: str) -> bool:
+    clean = str(name).strip()
+    if not clean:
+        return False
+    with _sheet_lock:
+        ensure_csv_exists()
+        ws = _open_accounts_worksheet()
+        raw = ws.get_all_values()
+        if not raw:
+            return False
+        header, *rows = raw
+        width = max(len(header), len(ACCOUNT_COLUMNS))
+        header = (list(header) + [""] * width)[:width]
+        normalized_rows = [(list(r) + [""] * width)[:width] for r in rows]
+        table = pd.DataFrame(normalized_rows, columns=header)
+        for col in ACCOUNT_COLUMNS:
+            if col not in table.columns:
+                table[col] = ""
+        table = table[ACCOUNT_COLUMNS].copy()
+        table["Nom"] = table["Nom"].astype(str).str.strip()
+        before = len(table)
+        table = table[table["Nom"].str.lower() != clean.lower()].reset_index(drop=True)
+        if len(table) == before:
+            return False
+        values = [ACCOUNT_COLUMNS] + table[ACCOUNT_COLUMNS].values.tolist()
+        ws.clear()
+        ws.update(
+            values,
+            range_name=f"A1:{_a1_column(len(ACCOUNT_COLUMNS))}{max(1, len(values))}",
+            value_input_option="USER_ENTERED",
+            raw=False,
+        )
+        return True
+
+
 def _postprocess_loaded_df(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         return df

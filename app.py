@@ -14,6 +14,7 @@ from logic import (
     compute_metrics,
     convert_tradingview_to_mvizion,
     delete_trade_by_position,
+    delete_account,
     ensure_csv_exists,
     format_date_fr,
     format_month_fr,
@@ -425,6 +426,13 @@ st.markdown(
             border: 1px solid #1F1F24;
             background: #090B10;
         }
+        .settings-card {
+            border: 1px solid #1F1F24;
+            border-radius: 12px;
+            padding: 14px;
+            margin: 0.55rem 0 0.95rem 0;
+            background: linear-gradient(180deg, #11141C 0%, #0C0F15 100%);
+        }
     </style>
     """,
     unsafe_allow_html=True,
@@ -481,7 +489,7 @@ with st.sidebar:
     )
     page = st.radio(
         "Navigation",
-        ["Dashboard", "Calendrier", "Mes Stats", "Analyses Avancées", "Mon Trading", "Mon Compte/Finance", "Nouveau Trade"],
+        ["Dashboard", "Calendrier", "Mes Stats", "Analyses Avancées", "Mon Trading", "Mon Compte/Finance", "Nouveau Trade", "⚙️ Paramètres"],
         key="main_nav",
     )
     st.markdown("---")
@@ -857,6 +865,75 @@ elif page == "Mon Trading":
         display_df["Date"] = display_df["Date"].apply(format_date_fr)
         ordered_cols = ["Date", "Actif", "Session", "Type", "Prix Entree", "Prix Sortie", "Quantite", "Frais", "Profit", "Sortie", "Compte", "Compte_Type"]
         st.dataframe(display_df[ordered_cols], use_container_width=True, hide_index=True)
+
+elif page == "⚙️ Paramètres":
+    st.subheader("⚙️ Paramètres")
+    st.caption("Gère les comptes enregistrés dans la feuille Accounts : consultation, mise à jour des limites et suppression.")
+
+    accounts_df = load_accounts_from_sheet()
+    st.markdown('<div class="settings-card">', unsafe_allow_html=True)
+    st.markdown("#### 📋 Liste des comptes")
+    if accounts_df.empty:
+        st.info("Aucun compte enregistré dans la feuille Accounts.")
+    else:
+        display_accounts = accounts_df.rename(
+            columns={
+                "Nom": "Compte",
+                "Objectif_Pct": "Objectif Profit (%)",
+                "Max_Loss_USD": "Max Loss ($)",
+            }
+        )
+        st.dataframe(display_accounts, use_container_width=True, hide_index=True)
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    st.markdown('<div class="settings-card">', unsafe_allow_html=True)
+    st.markdown("#### ✏️ Modifier un compte")
+    if accounts_df.empty:
+        st.caption("Ajoute d'abord un compte depuis Nouveau Trade.")
+    else:
+        names = accounts_df["Nom"].astype(str).tolist()
+        edit_name = st.selectbox("Compte à modifier", names, key="settings_edit_account")
+        edit_row = accounts_df[accounts_df["Nom"].astype(str) == edit_name].iloc[-1]
+        edit_obj = st.number_input(
+            "Objectif Profit (%)",
+            min_value=1.0,
+            max_value=100.0,
+            value=float(edit_row["Objectif_Pct"]),
+            step=0.5,
+            key="settings_edit_obj",
+        )
+        edit_loss = st.number_input(
+            "Max Loss ($)",
+            min_value=1.0,
+            value=float(edit_row["Max_Loss_USD"]),
+            step=25.0,
+            key="settings_edit_loss",
+        )
+        if st.button("💾 Enregistrer les modifications", key="settings_save_account"):
+            upsert_account(edit_name, float(edit_obj), float(edit_loss))
+            st.success(f"Compte '{edit_name}' mis à jour.")
+            st.rerun()
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    st.markdown('<div class="settings-card">', unsafe_allow_html=True)
+    st.markdown("#### 🗑️ Supprimer un compte")
+    if accounts_df.empty:
+        st.caption("Aucun compte à supprimer.")
+    else:
+        names = accounts_df["Nom"].astype(str).tolist()
+        del_name = st.selectbox("Compte à supprimer", names, key="settings_delete_account")
+        confirm = st.checkbox(f"Confirmer la suppression définitive de '{del_name}'", key="settings_confirm_delete")
+        if st.button("🧨 Supprimer ce compte", key="settings_delete_btn"):
+            if not confirm:
+                st.warning("Coche la confirmation avant de supprimer.")
+            else:
+                deleted = delete_account(del_name)
+                if deleted:
+                    st.success(f"Compte '{del_name}' supprimé de la feuille Accounts.")
+                    st.rerun()
+                else:
+                    st.info("Compte introuvable ou déjà supprimé.")
+    st.markdown("</div>", unsafe_allow_html=True)
 
 elif page == "Mon Compte/Finance":
     st.subheader("Mon Compte/Finance - Gestion du capital")
