@@ -20,8 +20,10 @@ from logic import (
     get_trading_session,
     infer_mental_state,
     load_trades,
+    load_accounts_from_sheet,
     save_screenshot,
     save_trade,
+    upsert_account,
 )
 
 
@@ -267,6 +269,24 @@ def discipline_profit_correlation_figure(df: pd.DataFrame) -> tuple[go.Figure, f
     return fig, corr_val
 
 
+def build_account_settings(df: pd.DataFrame) -> dict[str, dict[str, float]]:
+    if df.empty:
+        return {}
+    work = df.copy().sort_values("Date")
+    settings: dict[str, dict[str, float]] = {}
+    for _, row in work.iterrows():
+        compte = str(row.get("Compte", "")).strip()
+        if not compte:
+            continue
+        obj = pd.to_numeric(row.get("Profit_Objectif_Pct", 10.0), errors="coerce")
+        mdl = pd.to_numeric(row.get("Max_Daily_Loss_USD", 500.0), errors="coerce")
+        settings[compte] = {
+            "profit_pct": float(obj) if pd.notna(obj) else 10.0,
+            "max_daily_loss_usd": float(mdl) if pd.notna(mdl) else 500.0,
+        }
+    return settings
+
+
 st.set_page_config(page_title="MVIZION", layout="wide")
 ensure_csv_exists()
 
@@ -275,6 +295,11 @@ st.markdown(
     <style>
         .stApp { background: #050505; color: #FFFFFF; font-family: "Inter", sans-serif; }
         [data-testid="stSidebar"] { background: #0D1117; border-right: 1px solid #1f2937; padding-top: 2rem; }
+        [data-testid="stSidebar"] * { font-size: 1.02rem !important; font-weight: 620 !important; color: #F3F4F6; }
+        [data-testid="stSidebar"] label, [data-testid="stSidebar"] p, [data-testid="stSidebar"] span {
+            color: #F9FAFB !important;
+            letter-spacing: 0.2px;
+        }
         .block-container { padding-top: 2.35rem; padding-bottom: 1.15rem; max-width: 1460px; }
         .tv-logo { font-size: 2.25rem; font-weight: 800; color: #6366F1; margin-bottom: 1rem; letter-spacing: 0.35px; }
         .tv-card {
@@ -393,22 +418,40 @@ st.markdown(
             width: auto !important;
             object-fit: contain;
         }
+        .session-chart-wrap {
+            margin: 0.8rem 0 1.1rem 0;
+            padding: 0.7rem;
+            border-radius: 12px;
+            border: 1px solid #1F1F24;
+            background: #090B10;
+        }
     </style>
     """,
     unsafe_allow_html=True,
 )
 
 all_trades = load_trades()
+sheet_accounts = load_accounts_from_sheet()
+account_settings = build_account_settings(all_trades)
+for _, row in sheet_accounts.iterrows():
+    account_settings[str(row["Nom"]).strip()] = {
+        "profit_pct": float(pd.to_numeric(row["Objectif_Pct"], errors="coerce") if pd.notna(row["Objectif_Pct"]) else 10.0),
+        "max_daily_loss_usd": float(pd.to_numeric(row["Max_Loss_USD"], errors="coerce") if pd.notna(row["Max_Loss_USD"]) else 500.0),
+    }
+trade_accounts = sorted([x for x in all_trades["Compte"].astype(str).unique().tolist() if x]) if not all_trades.empty else []
+empty_accounts = [str(x).strip() for x in sheet_accounts["Nom"].astype(str).tolist() if str(x).strip()]
+account_names = sorted(set(trade_accounts + empty_accounts))
 
 with st.sidebar:
     compte_options = ["Tous les comptes"]
-    if not all_trades.empty:
-        compte_options += sorted([x for x in all_trades["Compte"].astype(str).unique().tolist() if x])
+    if account_names:
+        compte_options += account_names
     selected_compte = st.selectbox("Sélectionner un Compte", compte_options, key="global_compte_filter")
 
     with st.expander("Paramètres du Compte", expanded=False):
-        objectif_profit_pct = st.number_input("Objectif de Profit (%)", min_value=1.0, max_value=100.0, value=10.0, step=0.5, key="objectif_profit_pct")
-        max_daily_loss_pct = st.number_input("Max Daily Loss (%)", min_value=0.5, max_value=50.0, value=5.0, step=0.5, key="max_daily_loss_pct")
+        selected_settings = account_settings.get(selected_compte, {"profit_pct": 10.0, "max_daily_loss_usd": 500.0})
+        objectif_profit_pct = st.number_input("Objectif de Profit (%)", min_value=1.0, max_value=100.0, value=float(selected_settings["profit_pct"]), step=0.5, key="objectif_profit_pct")
+        max_daily_loss_usd = st.number_input("Max Daily Loss ($)", min_value=1.0, value=float(selected_settings["max_daily_loss_usd"]), step=25.0, key="max_daily_loss_usd")
 
     st.markdown('<div class="tv-logo">MVIZION</div>', unsafe_allow_html=True)
     components.html(
@@ -438,7 +481,7 @@ with st.sidebar:
     )
     page = st.radio(
         "Navigation",
-        ["Dashboard", "Calendrier", "Mes Stats", "Analyses Avancées", "Mon Trading", "Mon Compte/Finance", "Nouveau"],
+        ["Dashboard", "Calendrier", "Mes Stats", "Analyses Avancées", "Mon Trading", "Mon Compte/Finance", "Nouveau Trade"],
         key="main_nav",
     )
     st.markdown("---")
@@ -461,8 +504,8 @@ if selected_compte == "Tous les comptes":
 else:
     trades = all_trades[all_trades["Compte"].astype(str) == selected_compte].copy()
 
-if page == "Nouveau":
-    st.subheader("Nouveau trade")
+if page == "Nouveau Trade":
+    st.subheader("Nouveau Trade")
     with st.form("trade_form", clear_on_submit=True):
         top_left, top_right = st.columns([1.3, 1.1])
         with top_left:
@@ -472,9 +515,62 @@ if page == "Nouveau":
                 actif = st.text_input("Actif", placeholder="Ex: EURUSD", key="trade_actif")
             with a2:
                 trade_type = st.radio("Type", ["BUY", "SELL"], horizontal=True, key="trade_type")
-            compte = st.selectbox("Compte", ["Compte 1", "Compte 2", "Compte 3"], key="trade_compte")
+            trade_account_options = account_names.copy() if account_names else ["Compte 1"]
+            add_account_label = "➕ Ajouter un compte"
+            if add_account_label not in trade_account_options:
+                trade_account_options.append(add_account_label)
+            compte = st.selectbox("Compte", trade_account_options, key="trade_compte")
+            if compte == add_account_label:
+                st.info("Crée un compte ci-dessous puis ajoute le trade.")
             compte_type = st.selectbox("Type de Compte", ["Evaluation", "Funded", "Live"], key="trade_compte_type")
             session = st.selectbox("Session", ["AUTO", "ASIA", "LONDON", "NEW YORK", "OUT"], index=0, key="trade_session")
+            default_acc = account_settings.get(compte, {"profit_pct": 10.0, "max_daily_loss_usd": 500.0})
+            profit_objectif_pct = st.number_input(
+                "% de Profit Objectif (compte)",
+                min_value=1.0,
+                max_value=100.0,
+                value=float(default_acc["profit_pct"]),
+                step=0.5,
+                key="trade_profit_objectif_pct",
+            )
+            max_daily_loss_usd_trade = st.number_input(
+                "Max Daily Loss (en $)",
+                min_value=1.0,
+                value=float(default_acc["max_daily_loss_usd"]),
+                step=25.0,
+                key="trade_max_daily_loss_usd",
+            )
+            with st.expander("➕ Ajouter un compte", expanded=False):
+                new_account_name = st.text_input("Nom du nouveau compte", key="new_account_name")
+                new_account_profit_pct = st.number_input(
+                    "% de Profit Objectif",
+                    min_value=1.0,
+                    max_value=100.0,
+                    value=10.0,
+                    step=0.5,
+                    key="new_account_profit_pct",
+                )
+                new_account_max_loss = st.number_input(
+                    "Max Daily Loss (en $)",
+                    min_value=1.0,
+                    value=500.0,
+                    step=25.0,
+                    key="new_account_max_loss",
+                )
+                add_account_submit = st.form_submit_button("Créer ce compte")
+                if add_account_submit:
+                    clean_name = new_account_name.strip()
+                    if not clean_name:
+                        st.warning("Le nom du compte est obligatoire.")
+                    else:
+                        upsert_account(clean_name, float(new_account_profit_pct), float(new_account_max_loss))
+                        account_settings[clean_name] = {
+                            "profit_pct": float(new_account_profit_pct),
+                            "max_daily_loss_usd": float(new_account_max_loss),
+                        }
+                        st.session_state.trade_compte = clean_name
+                        st.success(f"Compte '{clean_name}' ajouté.")
+                        st.rerun()
         with top_right:
             prix_entree = st.number_input("Prix Entree", min_value=0.0, value=0.0, step=0.01, key="trade_prix_entree")
             prix_sortie = st.number_input("Prix Sortie", min_value=0.0, value=0.0, step=0.01, key="trade_prix_sortie")
@@ -500,6 +596,8 @@ if page == "Nouveau":
     if submit:
         if not actif.strip():
             st.error("Le champ Actif est obligatoire.")
+        elif compte == "➕ Ajouter un compte":
+            st.error("Sélectionne un compte valide ou crée-en un avant d'ajouter le trade.")
         elif quantite <= 0:
             st.error("La quantite doit etre superieure a zero.")
         else:
@@ -507,6 +605,7 @@ if page == "Nouveau":
             etat_mental = infer_mental_state(float(sizing_score), float(sl_score), float(revenge_score), float(overtrading_score), float(bias_score))
             trade_id = f"{trade_date.strftime('%Y%m%d')}_{datetime.now().strftime('%H%M%S')}_{uuid.uuid4().hex[:8]}"
             image_rel = save_screenshot(trade_screenshot, trade_id) if trade_screenshot else ""
+            upsert_account(compte, float(profit_objectif_pct), float(max_daily_loss_usd_trade))
             save_trade(
                 {
                     "Date": pd.to_datetime(trade_date).strftime("%Y-%m-%d"),
@@ -523,6 +622,8 @@ if page == "Nouveau":
                     "Biais Jour": "Haussier" if bias_score >= 10 else "Baissier",
                     "Compte": compte,
                     "Compte_Type": "Eval" if compte_type == "Evaluation" else compte_type,
+                    "Profit_Objectif_Pct": float(profit_objectif_pct),
+                    "Max_Daily_Loss_USD": float(max_daily_loss_usd_trade),
                     "Sizing_Score": float(sizing_score),
                     "SL_Score": float(sl_score),
                     "Revenge_Score": float(revenge_score),
@@ -608,7 +709,9 @@ elif page == "Dashboard":
         margin=dict(l=10, r=10, t=20, b=10),
         title="Profit par session",
     )
+    st.markdown('<div class="session-chart-wrap">', unsafe_allow_html=True)
     st.plotly_chart(session_fig, use_container_width=True, theme=None)
+    st.markdown("</div>", unsafe_allow_html=True)
 
     # Objectifs d evaluation
     st.markdown("### Objectifs d Evaluation")
@@ -623,7 +726,7 @@ elif page == "Dashboard":
         today = pd.Timestamp.now().normalize()
         today_df = trades[trades["Date"].dt.normalize() == today]
         daily_pnl = float(today_df["Profit"].sum()) if not today_df.empty else 0.0
-    max_daily_loss_value = capital_initial * (float(max_daily_loss_pct) / 100.0)
+    max_daily_loss_value = float(max_daily_loss_usd)
     used_daily_loss = abs(min(0.0, daily_pnl))
     progress_daily_loss = 0.0 if max_daily_loss_value <= 0 else max(0.0, min(1.0, used_daily_loss / max_daily_loss_value))
     st.write(f"Max Daily Loss: {used_daily_loss:,.2f}$ / {max_daily_loss_value:,.2f}$")

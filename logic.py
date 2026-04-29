@@ -33,6 +33,8 @@ COLUMNS = [
     "Biais Jour",
     "Compte",
     "Compte_Type",
+    "Profit_Objectif_Pct",
+    "Max_Daily_Loss_USD",
     "Sizing_Score",
     "SL_Score",
     "Revenge_Score",
@@ -41,6 +43,7 @@ COLUMNS = [
     "High_Water_Mark",
     "Image",
 ]
+ACCOUNT_COLUMNS = ["Nom", "Objectif_Pct", "Max_Loss_USD"]
 
 # Compatibilite : l'ancienne constante (plus utilisee pour la persistance)
 CSV_FILE = "trades_papa.csv"
@@ -60,7 +63,7 @@ MONTHS_FR = {
     12: "Dec",
 }
 
-_sheet_lock = threading.Lock()
+_sheet_lock = threading.RLock()
 _gspread_client: gspread.Client | None = None
 
 
@@ -92,6 +95,10 @@ def _worksheet_title() -> str:
     return "Trades"
 
 
+def _accounts_worksheet_title() -> str:
+    return "Accounts"
+
+
 def _get_client() -> gspread.Client:
     global _gspread_client
     if _gspread_client is None:
@@ -100,14 +107,49 @@ def _get_client() -> gspread.Client:
     return _gspread_client
 
 
-def _open_worksheet() -> gspread.Worksheet:
+def _open_worksheet(title: str, default_rows: int = 2000) -> gspread.Worksheet:
     gc = _get_client()
     sh = gc.open_by_key(_spreadsheet_id())
-    title = _worksheet_title()
     try:
         return sh.worksheet(title)
     except gspread.WorksheetNotFound:
-        return sh.add_worksheet(title=title, rows=2000, cols=max(len(COLUMNS), 26))
+        return sh.add_worksheet(title=title, rows=default_rows, cols=max(len(COLUMNS), 26))
+
+
+def _open_trades_worksheet() -> gspread.Worksheet:
+    return _open_worksheet(_worksheet_title(), default_rows=2000)
+
+
+def _open_accounts_worksheet() -> gspread.Worksheet:
+    return _open_worksheet(_accounts_worksheet_title(), default_rows=200)
+
+
+def _ensure_accounts_sheet_exists() -> None:
+    aws = _open_accounts_worksheet()
+    a_raw = aws.get_all_values()
+    if not a_raw:
+        aws.update(
+            [ACCOUNT_COLUMNS],
+            range_name=f"A1:{_a1_column(len(ACCOUNT_COLUMNS))}1",
+            value_input_option="USER_ENTERED",
+            raw=False,
+        )
+        return
+    a_header = [str(h).strip() for h in a_raw[0]]
+    if a_header == ACCOUNT_COLUMNS:
+        return
+    rows = a_raw[1:] if len(a_raw) > 1 else []
+    rebuilt = [ACCOUNT_COLUMNS]
+    for r in rows:
+        row = list(r) + [""] * (len(ACCOUNT_COLUMNS) - len(r))
+        rebuilt.append(row[: len(ACCOUNT_COLUMNS)])
+    aws.clear()
+    aws.update(
+        rebuilt,
+        range_name=f"A1:{_a1_column(len(ACCOUNT_COLUMNS))}{max(1, len(rebuilt))}",
+        value_input_option="USER_ENTERED",
+        raw=False,
+    )
 
 
 def _values_to_dataframe(header: list[str], rows: list[list[Any]]) -> pd.DataFrame:
@@ -152,7 +194,7 @@ def _dataframe_to_sheet_values(df: pd.DataFrame) -> list[list[Any]]:
 
 
 def _read_sheet_dataframe() -> pd.DataFrame:
-    ws = _open_worksheet()
+    ws = _open_trades_worksheet()
     raw = ws.get_all_values()
     if not raw:
         return pd.DataFrame(columns=COLUMNS)
@@ -164,7 +206,7 @@ def _read_sheet_dataframe() -> pd.DataFrame:
 
 
 def _write_sheet_dataframe(df: pd.DataFrame) -> None:
-    ws = _open_worksheet()
+    ws = _open_trades_worksheet()
     values = _dataframe_to_sheet_values(df)
     ws.clear()
     last_col = _a1_column(len(COLUMNS))
@@ -194,6 +236,8 @@ def _default_for_column(col: str) -> Any:
         "Overtrading_Score",
         "Bias_Score",
         "High_Water_Mark",
+        "Profit_Objectif_Pct",
+        "Max_Daily_Loss_USD",
     }
     if col in numeric_cols:
         return 0.0
@@ -219,7 +263,8 @@ def _default_for_column(col: str) -> Any:
 def ensure_csv_exists() -> None:
     """Initialise l'onglet Google Sheet (en-tetes COLUMNS) et migre les colonnes manquantes."""
     with _sheet_lock:
-        ws = _open_worksheet()
+        _ensure_accounts_sheet_exists()
+        ws = _open_trades_worksheet()
         raw = ws.get_all_values()
         if not raw:
             ws.update(
@@ -242,6 +287,94 @@ def ensure_csv_exists() -> None:
         _write_sheet_dataframe(df)
 
 
+def load_accounts_from_sheet() -> pd.DataFrame:
+    with _sheet_lock:
+        ensure_csv_exists()
+        ws = _open_accounts_worksheet()
+        raw = ws.get_all_values()
+    if not raw:
+        return pd.DataFrame(columns=ACCOUNT_COLUMNS)
+    header, *rows = raw
+    if not header:
+        return pd.DataFrame(columns=ACCOUNT_COLUMNS)
+    width = max(len(header), len(ACCOUNT_COLUMNS))
+    header = (list(header) + [""] * width)[:width]
+    normalized_rows: list[list[Any]] = []
+    for r in rows:
+        normalized_rows.append((list(r) + [""] * width)[:width])
+    df = pd.DataFrame(normalized_rows, columns=header)
+    for col in ACCOUNT_COLUMNS:
+        if col not in df.columns:
+            df[col] = ""
+    df = df[ACCOUNT_COLUMNS]
+    df["Nom"] = df["Nom"].astype(str).str.strip()
+    df["Objectif_Pct"] = pd.to_numeric(df["Objectif_Pct"], errors="coerce").fillna(10.0)
+    df["Max_Loss_USD"] = pd.to_numeric(df["Max_Loss_USD"], errors="coerce").fillna(500.0)
+    df = df[df["Nom"] != ""].copy()
+    df["_key"] = df["Nom"].str.lower()
+    df = df.drop_duplicates("_key", keep="last").drop(columns=["_key"]).reset_index(drop=True)
+    return df
+
+
+def upsert_account(name: str, objectif_pct: float, max_loss_usd: float) -> None:
+    clean = str(name).strip()
+    if not clean:
+        return
+    with _sheet_lock:
+        ensure_csv_exists()
+        ws = _open_accounts_worksheet()
+        raw = ws.get_all_values()
+        if not raw:
+            table = pd.DataFrame(columns=ACCOUNT_COLUMNS)
+        else:
+            header, *rows = raw
+            width = max(len(header), len(ACCOUNT_COLUMNS))
+            header = (list(header) + [""] * width)[:width]
+            normalized_rows = [(list(r) + [""] * width)[:width] for r in rows]
+            table = pd.DataFrame(normalized_rows, columns=header)
+        for col in ACCOUNT_COLUMNS:
+            if col not in table.columns:
+                table[col] = ""
+        table = table[ACCOUNT_COLUMNS].copy()
+        table["Nom"] = table["Nom"].astype(str).str.strip()
+        table["Objectif_Pct"] = pd.to_numeric(table["Objectif_Pct"], errors="coerce").fillna(10.0)
+        table["Max_Loss_USD"] = pd.to_numeric(table["Max_Loss_USD"], errors="coerce").fillna(500.0)
+        key = clean.lower()
+        mask = table["Nom"].astype(str).str.lower() == key
+        if mask.any():
+            idx = table[mask].index[-1]
+            table.at[idx, "Nom"] = clean
+            table.at[idx, "Objectif_Pct"] = float(objectif_pct)
+            table.at[idx, "Max_Loss_USD"] = float(max_loss_usd)
+            # Supprime d'éventuels doublons résiduels
+            table["_key"] = table["Nom"].astype(str).str.lower()
+            table = table.drop_duplicates("_key", keep="last").drop(columns=["_key"])
+        else:
+            table = pd.concat(
+                [
+                    table,
+                    pd.DataFrame(
+                        [
+                            {
+                                "Nom": clean,
+                                "Objectif_Pct": float(objectif_pct),
+                                "Max_Loss_USD": float(max_loss_usd),
+                            }
+                        ]
+                    ),
+                ],
+                ignore_index=True,
+            )
+        values = [ACCOUNT_COLUMNS] + table[ACCOUNT_COLUMNS].values.tolist()
+        ws.clear()
+        ws.update(
+            values,
+            range_name=f"A1:{_a1_column(len(ACCOUNT_COLUMNS))}{max(1, len(values))}",
+            value_input_option="USER_ENTERED",
+            raw=False,
+        )
+
+
 def _postprocess_loaded_df(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         return df
@@ -259,6 +392,8 @@ def _postprocess_loaded_df(df: pd.DataFrame) -> pd.DataFrame:
         "Overtrading_Score",
         "Bias_Score",
         "High_Water_Mark",
+        "Profit_Objectif_Pct",
+        "Max_Daily_Loss_USD",
     ]:
         df[col] = pd.to_numeric(df[col], errors="coerce")
 
@@ -339,11 +474,17 @@ def delete_trade_by_position(position: int) -> None:
             _write_sheet_dataframe(df)
 
 
+def _normalize_col_name(value: str) -> str:
+    s = str(value).strip().lower()
+    return "".join(ch for ch in s if ch.isalnum())
+
+
 def find_column(columns: list[str], candidates: list[str]) -> str | None:
-    lowered = {col.lower().strip(): col for col in columns}
+    normalized = {_normalize_col_name(col): col for col in columns}
     for candidate in candidates:
-        if candidate in lowered:
-            return lowered[candidate]
+        key = _normalize_col_name(candidate)
+        if key in normalized:
+            return normalized[key]
     return None
 
 
@@ -352,14 +493,14 @@ def convert_tradingview_to_mvizion(import_df: pd.DataFrame) -> pd.DataFrame:
         return pd.DataFrame(columns=COLUMNS)
 
     cols = [str(c) for c in import_df.columns]
-    col_date = find_column(cols, ["date", "time", "timestamp", "open time", "close time"])
-    col_symbol = find_column(cols, ["symbol", "ticker", "instrument", "asset", "actif"])
-    col_open = find_column(cols, ["open price", "entry price", "open", "buy price", "prix entree"])
-    col_close = find_column(cols, ["close price", "exit price", "close", "sell price", "prix sortie"])
-    col_price = find_column(cols, ["price", "avg price", "fill price"])
-    col_qty = find_column(cols, ["qty", "quantity", "size", "contracts", "quantite"])
-    col_fee = find_column(cols, ["fee", "fees", "commission", "commissions", "frais"])
-    col_profit = find_column(cols, ["profit", "pnl", "net profit", "realized pnl", "result"])
+    col_date = find_column(cols, ["date", "time", "timestamp", "open time", "close time", "entry time"])
+    col_symbol = find_column(cols, ["symbol", "ticker", "instrument", "asset", "actif", "market"])
+    col_open = find_column(cols, ["open price", "entry price", "open", "buy price", "prix entree", "entry"])
+    col_close = find_column(cols, ["close price", "exit price", "close", "sell price", "prix sortie", "exit"])
+    col_price = find_column(cols, ["price", "avg price", "fill price", "average price"])
+    col_qty = find_column(cols, ["qty", "quantity", "size", "contracts", "quantite", "volume"])
+    col_fee = find_column(cols, ["fee", "fees", "commission", "commissions", "frais", "cost"])
+    col_profit = find_column(cols, ["profit", "pnl", "net profit", "realized pnl", "result", "pl"])
     col_side = find_column(cols, ["type", "side", "direction"])
     col_session = find_column(cols, ["session"])
 
@@ -392,6 +533,8 @@ def convert_tradingview_to_mvizion(import_df: pd.DataFrame) -> pd.DataFrame:
     out["Biais Jour"] = "Haussier"
     out["Compte"] = "Compte 1"
     out["Compte_Type"] = "Eval"
+    out["Profit_Objectif_Pct"] = 10.0
+    out["Max_Daily_Loss_USD"] = 500.0
     out["Sizing_Score"] = 0.0
     out["SL_Score"] = 0.0
     out["Revenge_Score"] = 0.0
