@@ -72,10 +72,9 @@ LOGGER = logging.getLogger("mvizion.logic")
 
 
 def _show_google_error(message: str, technical: str = "") -> None:
-    st.error(message)
+    st.warning(message)
     if technical:
         st.caption(f"Détail technique: {technical}")
-    st.stop()
 
 
 def _handle_google_exception(exc: Exception, context: str) -> None:
@@ -372,12 +371,16 @@ def ensure_csv_exists() -> None:
         _write_sheet_dataframe(df)
 
 
-@st.cache_data(ttl=60, show_spinner=False)
+@st.cache_data(ttl=300, show_spinner=False)
 def load_accounts_from_sheet() -> pd.DataFrame:
-    with _sheet_lock:
-        ensure_csv_exists()
-        ws = _open_accounts_worksheet()
-        raw = ws.get_all_values()
+    try:
+        with _sheet_lock:
+            ensure_csv_exists()
+            ws = _open_accounts_worksheet()
+            raw = ws.get_all_values()
+    except Exception as exc:
+        _handle_google_exception(exc, "load_accounts_from_sheet")
+        return pd.DataFrame(columns=ACCOUNT_COLUMNS)
     if not raw:
         return pd.DataFrame(columns=ACCOUNT_COLUMNS)
     header, *rows = raw
@@ -533,12 +536,16 @@ def _postprocess_loaded_df(df: pd.DataFrame) -> pd.DataFrame:
     return df.sort_values("Date").reset_index(drop=True)
 
 
-@st.cache_data(ttl=60, show_spinner=False)
+@st.cache_data(ttl=300, show_spinner=False)
 def load_trades() -> pd.DataFrame:
-    ensure_csv_exists()
-    with _sheet_lock:
-        df = _read_sheet_dataframe()
-    return _postprocess_loaded_df(df)
+    try:
+        ensure_csv_exists()
+        with _sheet_lock:
+            df = _read_sheet_dataframe()
+        return _postprocess_loaded_df(df)
+    except Exception as exc:
+        _handle_google_exception(exc, "load_trades")
+        return pd.DataFrame(columns=COLUMNS)
 
 
 def save_screenshot(uploaded_file: Any, trade_id: str) -> str:

@@ -1042,8 +1042,9 @@ elif page == "Mon Compte/Finance":
     if not account_names:
         st.info("Aucun compte disponible. Crée d'abord un compte depuis Nouveau Trade.")
     else:
-        finance_default = selected_compte if selected_compte in account_names else account_names[0]
-        finance_compte = st.selectbox("Compte à analyser", account_names, index=account_names.index(finance_default), key="finance_compte")
+        finance_compte = selected_compte if selected_compte in account_names else account_names[0]
+        if selected_compte == "Tous les comptes":
+            st.caption("Sélectionne un compte précis dans la sidebar pour des chiffres totalement isolés par compte.")
         finance_settings = account_settings.get(finance_compte, {"profit_pct": 10.0, "max_daily_loss_usd": 500.0, "initial_capital": 10000.0})
         finance_initial = st.number_input(
             "Capital initial ($)",
