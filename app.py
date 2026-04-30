@@ -347,6 +347,7 @@ st.markdown(
     <style>
         .stApp { background: #050505; color: #FFFFFF; font-family: "Inter", sans-serif; }
         [data-testid="stSidebar"] { background: #0D1117; border-right: 1px solid #1f2937; padding-top: 0px !important; margin-top: 0px !important; }
+        section[data-testid='stSidebar'] > div { padding-top: 0px !important; }
         [data-testid="stSidebarContent"],
         [data-testid="stSidebarContent"] > div,
         [data-testid="stSidebar"] > div,
@@ -379,7 +380,10 @@ st.markdown(
             -webkit-text-fill-color: transparent;
             margin: 0 !important;
             margin-top: 0 !important;
-            padding: 40px 0 !important;
+            padding-top: 30px !important;
+            padding-bottom: 30px !important;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
             white-space: nowrap;
             letter-spacing: 0.5px;
             line-height: 0.9;
@@ -395,6 +399,13 @@ st.markdown(
         [data-testid="stSidebar"] .stMarkdown p {
             margin: 0px !important;
             padding: 0px !important;
+        }
+        [data-testid="stSidebar"] [data-testid="stWidgetLabel"],
+        [data-testid="stSidebar"] [data-testid="stSelectbox"] > label,
+        [data-testid="stSidebar"] .stSelectbox:first-of-type,
+        [data-testid="stSidebar"] .stSelectbox:first-of-type > div {
+            margin-top: 0px !important;
+            padding-top: 0px !important;
         }
         @keyframes gold-shimmer {
             0% { background-position: 0% 50%; }
