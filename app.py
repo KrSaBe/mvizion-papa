@@ -346,7 +346,8 @@ st.markdown(
     """
     <style>
         .stApp { background: #050505; color: #FFFFFF; font-family: "Inter", sans-serif; }
-        [data-testid="stSidebar"] { background: #0D1117; border-right: 1px solid #1f2937; padding-top: 2rem; }
+        [data-testid="stSidebar"] { background: #0D1117; border-right: 1px solid #1f2937; padding-top: 0px !important; }
+        [data-testid="stSidebar"] > div:first-child { padding-top: 0px !important; margin-top: 0px !important; }
         [data-testid="stSidebar"] * { font-size: 1.02rem !important; font-weight: 620 !important; color: #F3F4F6; }
         [data-testid="stSidebar"] label, [data-testid="stSidebar"] p, [data-testid="stSidebar"] span {
             color: #F9FAFB !important;
@@ -357,17 +358,23 @@ st.markdown(
             position: relative;
             display: block;
             text-align: center;
-            font-size: clamp(100px, 8vw, 140px);
+            font-size: 120px !important;
             font-weight: 700;
             font-style: italic;
-            color: #D4AF37;
+            background: linear-gradient(to right, #BF953F, #FCF6BA, #B38728, #FBF5B7, #AA771C);
+            background-size: 200% auto;
+            background-position: 0% 50%;
+            -webkit-background-clip: text !important;
+            background-clip: text;
+            color: transparent !important;
+            -webkit-text-fill-color: transparent;
             margin: 0px !important;
             padding: 0px !important;
             letter-spacing: 0.5px;
-            line-height: 0.95;
+            line-height: 0.9;
             font-family: "Cormorant Garamond", "Palatino Linotype", "Times New Roman", serif;
-            overflow: hidden;
-            text-shadow: 0 1px 0 rgba(255, 255, 255, 0.12), 0 8px 24px rgba(212, 175, 55, 0.22);
+            text-shadow: 0 1px 0 rgba(255, 255, 255, 0.1), 0 10px 28px rgba(212, 175, 55, 0.24);
+            animation: gold-shimmer 7.5s linear infinite;
         }
         [data-testid="stSidebar"] .stMarkdown {
             margin: 0px !important;
@@ -378,27 +385,9 @@ st.markdown(
             margin: 0px !important;
             padding: 0px !important;
         }
-        .tv-logo::after {
-            content: "";
-            position: absolute;
-            top: -12%;
-            left: -45%;
-            width: 38%;
-            height: 130%;
-            background: linear-gradient(
-                110deg,
-                rgba(255, 255, 255, 0.0) 0%,
-                rgba(255, 248, 220, 0.65) 45%,
-                rgba(255, 255, 255, 0.0) 100%
-            );
-            transform: skewX(-22deg);
-            animation: logo-shimmer 3.4s ease-in-out infinite;
-            pointer-events: none;
-        }
-        @keyframes logo-shimmer {
-            0% { left: -52%; }
-            55% { left: 112%; }
-            100% { left: 112%; }
+        @keyframes gold-shimmer {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 200% 50%; }
         }
         .tv-card {
             background: linear-gradient(180deg, #121218 0%, #101015 100%);
