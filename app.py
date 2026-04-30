@@ -345,20 +345,12 @@ st.set_page_config(page_title="Mat'Sa", layout="wide")
 st.markdown(
     """
     <style>
-        [data-testid='stSidebarContent'] > * {
-            padding: 0 !important;
-            margin: 0 !important;
-        }
-        [data-testid='stSidebar'] iframe,
-        [data-testid='stSidebar'] div,
-        [data-testid='stSidebar'] div.stVerticalBlock,
-        [data-testid='stSidebar'] div.stSidebarUserContent {
-            padding-top: 0px !important;
-            margin-top: -50px !important;
-        }
+        [data-testid='stSidebarContent'] { padding-top: 0px !important; margin-top: 0px !important; }
+        [data-testid='stSidebarContent'] > * { padding-top: 0px !important; margin-top: 0px !important; }
+        section[data-testid='stSidebar'] { padding-top: 0px !important; margin-top: 0px !important; }
         section[data-testid='stSidebar'] > div {
             padding-top: 0px !important;
-            margin-top: -50px !important;
+            margin-top: 0px !important;
         }
     </style>
     """,
@@ -404,9 +396,9 @@ st.markdown(
             color: transparent !important;
             -webkit-text-fill-color: transparent;
             margin: 0 !important;
-            margin-top: -20px !important;
-            padding-top: 30px !important;
-            padding-bottom: 30px !important;
+            margin-top: 0 !important;
+            padding-top: 10px !important;
+            padding-bottom: 10px !important;
             padding-left: 0 !important;
             padding-right: 0 !important;
             white-space: nowrap;
