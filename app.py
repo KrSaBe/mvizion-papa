@@ -438,11 +438,11 @@ st.markdown(
         }
         [data-testid="stSidebarContent"]::before,
         [data-testid="stSidebarContent"]::after {
-            content: "\2727";
+            content: '✦';
             position: absolute;
-            width: 22px;
-            height: 22px;
-            font-size: 22px;
+            width: 24px;
+            height: 24px;
+            font-size: 24px;
             line-height: 1;
             pointer-events: none;
             z-index: 2;
@@ -658,7 +658,17 @@ with st.sidebar:
     )
     page = st.radio(
         "Navigation",
-        ["Dashboard", "📅 Calendrier", "Mes Stats", "Analyses Avancées", "Mon Trading", "Mon Compte/Finance", "Nouveau Trade", "⚙️ Paramètres"],
+        [
+            "Dashboard",
+            "🗓️ Calendrier",
+            "📰 News Économiques",
+            "Mes Stats",
+            "Analyses Avancées",
+            "Mon Trading",
+            "Mon Compte/Finance",
+            "Nouveau Trade",
+            "⚙️ Paramètres",
+        ],
         key="main_nav",
     )
     st.markdown("---")
@@ -949,13 +959,15 @@ elif page == "Dashboard":
     else:
         st.plotly_chart(performance_figure(trades), use_container_width=True, theme=None)
 
-elif page == "📅 Calendrier":
-    st.subheader("📅 Calendrier")
+elif page == "🗓️ Calendrier":
+    st.subheader("🗓️ Calendrier")
     st.markdown("### Suivi d'Activité")
     now_dt = pd.Timestamp.now()
     cal_html = trading_activity_calendar_html(trades, int(now_dt.year), int(now_dt.month))
     st.markdown(cal_html, unsafe_allow_html=True)
 
+elif page == "📰 News Économiques":
+    st.subheader("📰 News Économiques")
     st.markdown("### News économiques - Investing.com (FR)")
     st.caption("Filtre US à fort impact.")
     components.html(
@@ -1213,3 +1225,4 @@ elif page == "Mon Compte/Finance":
             use_container_width=True,
             hide_index=True,
         )
+        
