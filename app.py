@@ -340,6 +340,31 @@ def trading_activity_calendar_html(df: pd.DataFrame, year: int, month: int) -> s
 
 
 st.set_page_config(page_title="Mat'Sa", layout="wide")
+
+# Hard reset prioritaire (chargé avant le style principal)
+st.markdown(
+    """
+    <style>
+        [data-testid='stSidebarContent'] > * {
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        [data-testid='stSidebar'] iframe,
+        [data-testid='stSidebar'] div,
+        [data-testid='stSidebar'] div.stVerticalBlock,
+        [data-testid='stSidebar'] div.stSidebarUserContent {
+            padding-top: 0px !important;
+            margin-top: -50px !important;
+        }
+        section[data-testid='stSidebar'] > div {
+            padding-top: 0px !important;
+            margin-top: -50px !important;
+        }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 ensure_csv_exists()
 
 st.markdown(
@@ -379,7 +404,7 @@ st.markdown(
             color: transparent !important;
             -webkit-text-fill-color: transparent;
             margin: 0 !important;
-            margin-top: 0 !important;
+            margin-top: -20px !important;
             padding-top: 30px !important;
             padding-bottom: 30px !important;
             padding-left: 0 !important;
