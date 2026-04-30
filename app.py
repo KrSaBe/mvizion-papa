@@ -372,6 +372,10 @@ st.markdown(
     <style>
         .stApp { background: #050505; color: #FFFFFF; font-family: "Inter", sans-serif; }
         [data-testid="stSidebar"] { background: #0D1117; border-right: 1px solid #1f2937; padding-top: 0px !important; margin-top: 0px !important; }
+        [data-testid="stSidebarContent"] {
+            position: relative;
+            padding-bottom: 1.2rem !important;
+        }
         section[data-testid='stSidebar'] > div { padding-top: 0px !important; }
         [data-testid="stSidebarContent"],
         [data-testid="stSidebarContent"] > div,
@@ -405,10 +409,7 @@ st.markdown(
             color: transparent !important;
             -webkit-text-fill-color: transparent;
             margin: 0 !important;
-            margin-top: 0px !important;
-            margin-bottom: 35px !important;
-            padding: 0 !important;
-            padding-top: 0px !important;
+            padding: 25px 0 !important;
             white-space: nowrap;
             letter-spacing: 0.5px;
             line-height: 0.9;
@@ -431,6 +432,36 @@ st.markdown(
         [data-testid="stSidebar"] .stSelectbox:first-of-type > div {
             margin-top: 0px !important;
             padding-top: 0px !important;
+        }
+        [data-testid="stSidebar"] [data-testid="stSelectbox"] {
+            margin-top: 25px !important;
+        }
+        [data-testid="stSidebarContent"]::before,
+        [data-testid="stSidebarContent"]::after {
+            content: "";
+            position: absolute;
+            width: 7px;
+            height: 7px;
+            border-radius: 999px;
+            pointer-events: none;
+            z-index: 2;
+            background: #FCF6BA;
+            box-shadow: 0 0 10px rgba(252, 246, 186, 0.45), 0 0 20px rgba(252, 246, 186, 0.22);
+            animation: twinkle 2.8s ease-in-out infinite;
+        }
+        [data-testid="stSidebarContent"]::before {
+            top: 16px;
+            right: 16px;
+            animation-delay: 0.15s;
+        }
+        [data-testid="stSidebarContent"]::after {
+            bottom: 16px;
+            left: 14px;
+            animation-delay: 1.4s;
+        }
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.3; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.2); }
         }
         @keyframes gold-shimmer {
             0% { background-position: 0% 50%; }
