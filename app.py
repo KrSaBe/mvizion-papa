@@ -339,7 +339,7 @@ def trading_activity_calendar_html(df: pd.DataFrame, year: int, month: int) -> s
     """
 
 
-st.set_page_config(page_title="MVIZION", layout="wide")
+st.set_page_config(page_title="Mat'Sa", layout="wide")
 ensure_csv_exists()
 
 st.markdown(
@@ -353,7 +353,15 @@ st.markdown(
             letter-spacing: 0.2px;
         }
         .block-container { padding-top: 2.35rem; padding-bottom: 1.15rem; max-width: 1460px; }
-        .tv-logo { font-size: 2.25rem; font-weight: 800; color: #6366F1; margin-bottom: 1rem; letter-spacing: 0.35px; }
+        .tv-logo {
+            font-size: 32px;
+            font-weight: 700;
+            font-style: italic;
+            color: #D4AF37;
+            margin-bottom: 1rem;
+            letter-spacing: 0.4px;
+            font-family: "Cormorant Garamond", "Palatino Linotype", "Times New Roman", serif;
+        }
         .tv-card {
             background: linear-gradient(180deg, #121218 0%, #101015 100%);
             border: 1px solid #1F1F24;
@@ -515,7 +523,7 @@ with st.sidebar:
         objectif_profit_pct = st.number_input("Objectif de Profit (%)", min_value=1.0, max_value=100.0, value=float(selected_settings["profit_pct"]), step=0.5, key="objectif_profit_pct")
         max_daily_loss_usd = st.number_input("Max Daily Loss ($)", min_value=1.0, value=float(selected_settings["max_daily_loss_usd"]), step=25.0, key="max_daily_loss_usd")
 
-    st.markdown('<div class="tv-logo">MVIZION</div>', unsafe_allow_html=True)
+    st.sidebar.markdown("<div class=\"tv-logo\">Mat'Sa</div>", unsafe_allow_html=True)
     components.html(
         """
         <div style="display:block;padding-right:8px;">
