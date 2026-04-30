@@ -346,8 +346,17 @@ st.markdown(
     """
     <style>
         .stApp { background: #050505; color: #FFFFFF; font-family: "Inter", sans-serif; }
-        [data-testid="stSidebar"] { background: #0D1117; border-right: 1px solid #1f2937; padding-top: 0px !important; }
-        [data-testid="stSidebar"] > div:first-child { padding-top: 0px !important; margin-top: 0px !important; }
+        [data-testid="stSidebar"] { background: #0D1117; border-right: 1px solid #1f2937; padding-top: 0px !important; margin-top: 0px !important; }
+        [data-testid="stSidebarContent"],
+        [data-testid="stSidebarContent"] > div,
+        [data-testid="stSidebar"] > div,
+        [data-testid="stSidebar"] > div > div,
+        [data-testid="stSidebar"] div.block-container,
+        [data-testid="stSidebar"] .st-emotion-cache-1cypcdb,
+        [data-testid="stSidebar"] .st-emotion-cache-16idsys {
+            padding-top: 0px !important;
+            margin-top: 0px !important;
+        }
         [data-testid="stSidebar"] * { font-size: 1.02rem !important; font-weight: 620 !important; color: #F3F4F6; }
         [data-testid="stSidebar"] label, [data-testid="stSidebar"] p, [data-testid="stSidebar"] span {
             color: #F9FAFB !important;
@@ -369,7 +378,7 @@ st.markdown(
             color: transparent !important;
             -webkit-text-fill-color: transparent;
             margin: 0 !important;
-            margin-top: 15px !important;
+            margin-top: 0 !important;
             padding: 40px 0 !important;
             white-space: nowrap;
             letter-spacing: 0.5px;
