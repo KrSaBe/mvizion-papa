@@ -348,8 +348,14 @@ st.markdown(
         [data-testid='stSidebarContent'] { padding-top: 0px !important; margin-top: 0px !important; }
         [data-testid='stSidebarContent'] > * { padding-top: 0px !important; margin-top: 0px !important; }
         section[data-testid='stSidebar'] { padding-top: 0px !important; margin-top: 0px !important; }
-        [data-testid='stSidebarUserContent'] { padding-top: 20px !important; }
+        [data-testid='stSidebarUserContent'] { padding-top: 0px !important; margin-top: 0px !important; }
         [data-testid='stSidebarNav'] { display: none !important; }
+        [data-testid='stSidebarUserContent'] > div:first-child,
+        [data-testid='stSidebarContent'] > div:first-child,
+        section[data-testid='stSidebar'] > div > div:first-child {
+            margin-top: 0px !important;
+            padding-top: 0px !important;
+        }
         section[data-testid='stSidebar'] > div {
             padding-top: 0px !important;
             margin-top: 0px !important;
@@ -398,7 +404,7 @@ st.markdown(
             color: transparent !important;
             -webkit-text-fill-color: transparent;
             margin: 0 !important;
-            margin-top: 0 !important;
+            margin-top: -5px !important;
             padding: 0 !important;
             white-space: nowrap;
             letter-spacing: 0.5px;
