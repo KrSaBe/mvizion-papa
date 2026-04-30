@@ -1,0 +1,11 @@
+*.csv
+
+*.parquet
+
+*.feather
+
+*.xlsx
+
+*.xls
+
+*.jsonl

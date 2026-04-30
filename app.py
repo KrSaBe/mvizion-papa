@@ -438,16 +438,17 @@ st.markdown(
         }
         [data-testid="stSidebarContent"]::before,
         [data-testid="stSidebarContent"]::after {
-            content: "";
+            content: "\2727";
             position: absolute;
-            width: 7px;
-            height: 7px;
-            border-radius: 999px;
+            width: 22px;
+            height: 22px;
+            font-size: 22px;
+            line-height: 1;
             pointer-events: none;
             z-index: 2;
-            background: #FCF6BA;
-            box-shadow: 0 0 10px rgba(252, 246, 186, 0.45), 0 0 20px rgba(252, 246, 186, 0.22);
-            animation: twinkle 2.8s ease-in-out infinite;
+            color: #FCF6BA;
+            filter: drop-shadow(0 0 8px #FCF6BA);
+            animation: twinkle 3s ease-in-out infinite;
         }
         [data-testid="stSidebarContent"]::before {
             top: 16px;
@@ -962,12 +963,12 @@ elif page == "📅 Calendrier":
         <iframe
             src="https://fr.investing.com/economic-calendar/"
             width="100%"
-            height="680"
+            height="500"
             frameborder="0"
             style="border:1px solid #1F1F24;border-radius:12px;background:#0E1117;">
         </iframe>
         """,
-        height=700,
+        height=520,
     )
     st.markdown("### News économiques - Forex Factory")
     st.caption("Source complémentaire (US impact fort).")
@@ -976,12 +977,12 @@ elif page == "📅 Calendrier":
         <iframe
             src="https://www.dailyfx.com/economic-calendar"
             width="100%"
-            height="520"
+            height="500"
             frameborder="0"
             style="border:1px solid #1F1F24;border-radius:12px;background:#0E1117;">
         </iframe>
         """,
-        height=540,
+        height=520,
     )
 
 elif page == "Mes Stats":
