@@ -406,6 +406,7 @@ st.markdown(
             margin: 0 !important;
             margin-top: -5px !important;
             padding: 0 !important;
+            padding-bottom: 15px !important;
             white-space: nowrap;
             letter-spacing: 0.5px;
             line-height: 0.9;
@@ -585,7 +586,6 @@ if "pending_trade_compte" not in st.session_state:
 
 with st.sidebar:
     st.sidebar.markdown("<div class=\"tv-logo\">Mat'Sa</div>", unsafe_allow_html=True)
-    st.sidebar.markdown('<div style="height: 20px;"></div>', unsafe_allow_html=True)
 
     compte_options = ["Tous les comptes"]
     if account_names:
