@@ -358,7 +358,7 @@ st.markdown(
             position: relative;
             display: block;
             text-align: center;
-            font-size: 120px !important;
+            font-size: 60px !important;
             font-weight: 700;
             font-style: italic;
             background: linear-gradient(to right, #BF953F, #FCF6BA, #B38728, #FBF5B7, #AA771C);
@@ -368,8 +368,10 @@ st.markdown(
             background-clip: text;
             color: transparent !important;
             -webkit-text-fill-color: transparent;
-            margin: 0px !important;
-            padding: 0px !important;
+            margin: 0 !important;
+            margin-top: 15px !important;
+            padding: 40px 0 !important;
+            white-space: nowrap;
             letter-spacing: 0.5px;
             line-height: 0.9;
             font-family: "Cormorant Garamond", "Palatino Linotype", "Times New Roman", serif;
