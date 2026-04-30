@@ -391,7 +391,8 @@ st.markdown(
         .block-container { padding-top: 2.35rem; padding-bottom: 1.15rem; max-width: 1460px; }
         .tv-logo {
             position: relative;
-            display: block;
+            display: block !important;
+            width: 100% !important;
             text-align: center;
             font-size: 55px !important;
             font-weight: 700;
@@ -404,9 +405,10 @@ st.markdown(
             color: transparent !important;
             -webkit-text-fill-color: transparent;
             margin: 0 !important;
-            margin-top: -5px !important;
+            margin-top: 0px !important;
+            margin-bottom: 35px !important;
             padding: 0 !important;
-            padding-bottom: 15px !important;
+            padding-top: 0px !important;
             white-space: nowrap;
             letter-spacing: 0.5px;
             line-height: 0.9;
