@@ -408,7 +408,7 @@ st.markdown(
             background-clip: text;
             color: transparent !important;
             -webkit-text-fill-color: transparent;
-            margin: 0 !important;
+            margin: 0 0 40px 0 !important;
             padding: 25px 0 !important;
             white-space: nowrap;
             letter-spacing: 0.5px;
@@ -416,6 +416,30 @@ st.markdown(
             font-family: "Cormorant Garamond", "Palatino Linotype", "Times New Roman", serif;
             text-shadow: 0 1px 0 rgba(255, 255, 255, 0.1), 0 10px 28px rgba(212, 175, 55, 0.24);
             animation: gold-shimmer 7.5s linear infinite;
+        }
+        .tv-logo::before,
+        .tv-logo::after {
+            content: '✦';
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            font-size: 24px;
+            line-height: 1;
+            pointer-events: none;
+            z-index: 2;
+            color: #FCF6BA;
+            filter: drop-shadow(0 0 8px #FCF6BA);
+            animation: twinkle 3s ease-in-out infinite;
+        }
+        .tv-logo::before {
+            top: -10px;
+            right: -10px;
+            animation-delay: 0.15s;
+        }
+        .tv-logo::after {
+            bottom: -10px;
+            left: -10px;
+            animation-delay: 1.4s;
         }
         [data-testid="stSidebar"] .stMarkdown {
             margin: 0px !important;
@@ -435,30 +459,6 @@ st.markdown(
         }
         [data-testid="stSidebar"] [data-testid="stSelectbox"] {
             margin-top: 25px !important;
-        }
-        [data-testid="stSidebarContent"]::before,
-        [data-testid="stSidebarContent"]::after {
-            content: '✦';
-            position: absolute;
-            width: 24px;
-            height: 24px;
-            font-size: 24px;
-            line-height: 1;
-            pointer-events: none;
-            z-index: 2;
-            color: #FCF6BA;
-            filter: drop-shadow(0 0 8px #FCF6BA);
-            animation: twinkle 3s ease-in-out infinite;
-        }
-        [data-testid="stSidebarContent"]::before {
-            top: 16px;
-            right: 16px;
-            animation-delay: 0.15s;
-        }
-        [data-testid="stSidebarContent"]::after {
-            bottom: 16px;
-            left: 14px;
-            animation-delay: 1.4s;
         }
         @keyframes twinkle {
             0%, 100% { opacity: 0.3; transform: scale(1); }
