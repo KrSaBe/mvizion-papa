@@ -1,5 +1,6 @@
 import os
 import uuid
+import calendar
 from datetime import date, datetime
 
 import numpy as np
@@ -284,8 +285,58 @@ def build_account_settings(df: pd.DataFrame) -> dict[str, dict[str, float]]:
         settings[compte] = {
             "profit_pct": float(obj) if pd.notna(obj) else 10.0,
             "max_daily_loss_usd": float(mdl) if pd.notna(mdl) else 500.0,
+            "initial_capital": 10000.0,
         }
     return settings
+
+
+def trading_activity_calendar_html(df: pd.DataFrame, year: int, month: int) -> str:
+    month_mat = calendar.monthcalendar(year, month)
+    day_profit = {}
+    if not df.empty:
+        work = df.copy()
+        work["Date"] = pd.to_datetime(work["Date"], errors="coerce")
+        work["Profit"] = pd.to_numeric(work["Profit"], errors="coerce").fillna(0.0)
+        work = work.dropna(subset=["Date"])
+        month_df = work[(work["Date"].dt.year == year) & (work["Date"].dt.month == month)]
+        if not month_df.empty:
+            grp = month_df.groupby(month_df["Date"].dt.day)["Profit"].sum()
+            day_profit = {int(k): float(v) for k, v in grp.items()}
+
+    day_names = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"]
+    rows = []
+    rows.append("<tr>" + "".join([f"<th>{d}</th>" for d in day_names]) + "</tr>")
+    for week in month_mat:
+        tds = []
+        for d in week:
+            if d == 0:
+                tds.append('<td class="cal-empty"></td>')
+            else:
+                pnl = day_profit.get(d, 0.0)
+                cls = "cal-neutral"
+                if pnl > 0:
+                    cls = "cal-green"
+                elif pnl < 0:
+                    cls = "cal-red"
+                tds.append(f'<td class="{cls}"><div class="day">{d}</div><div class="pnl">{pnl:+.0f}$</div></td>')
+        rows.append("<tr>" + "".join(tds) + "</tr>")
+    return f"""
+    <style>
+        .trade-cal {{ width: 100%; border-collapse: separate; border-spacing: 6px; table-layout: fixed; }}
+        .trade-cal th {{ color:#A1A1AA; font-size:0.78rem; font-weight:700; text-align:center; padding-bottom:4px; }}
+        .trade-cal td {{ border:1px solid #1F1F24; border-radius:10px; background:#0F1118; height:72px; vertical-align:top; padding:6px; }}
+        .trade-cal td .day {{ font-weight:700; color:#E5E7EB; font-size:0.86rem; }}
+        .trade-cal td .pnl {{ margin-top:6px; font-size:0.76rem; color:#C7CEDA; }}
+        .trade-cal td.cal-green {{ background:#0E2A1D; border-color:#166534; }}
+        .trade-cal td.cal-green .pnl {{ color:#86EFAC; }}
+        .trade-cal td.cal-red {{ background:#321015; border-color:#7F1D1D; }}
+        .trade-cal td.cal-red .pnl {{ color:#FCA5A5; }}
+        .trade-cal td.cal-empty {{ border:none; background:transparent; }}
+    </style>
+    <table class="trade-cal">
+        {''.join(rows)}
+    </table>
+    """
 
 
 st.set_page_config(page_title="MVIZION", layout="wide")
@@ -445,6 +496,7 @@ for _, row in sheet_accounts.iterrows():
     account_settings[str(row["Nom"]).strip()] = {
         "profit_pct": float(pd.to_numeric(row["Objectif_Pct"], errors="coerce") if pd.notna(row["Objectif_Pct"]) else 10.0),
         "max_daily_loss_usd": float(pd.to_numeric(row["Max_Loss_USD"], errors="coerce") if pd.notna(row["Max_Loss_USD"]) else 500.0),
+        "initial_capital": float(pd.to_numeric(row.get("Initial_Capital", 10000.0), errors="coerce") if pd.notna(row.get("Initial_Capital", 10000.0)) else 10000.0),
     }
 trade_accounts = sorted([x for x in all_trades["Compte"].astype(str).unique().tolist() if x]) if not all_trades.empty else []
 empty_accounts = [str(x).strip() for x in sheet_accounts["Nom"].astype(str).tolist() if str(x).strip()]
@@ -594,7 +646,7 @@ if page == "Nouveau Trade":
                     if not clean_name:
                         st.warning("Le nom du compte est obligatoire.")
                     else:
-                        upsert_account(clean_name, float(new_account_profit_pct), float(new_account_max_loss))
+                        upsert_account(clean_name, float(new_account_profit_pct), float(new_account_max_loss), 10000.0)
                         account_settings[clean_name] = {
                             "profit_pct": float(new_account_profit_pct),
                             "max_daily_loss_usd": float(new_account_max_loss),
@@ -636,7 +688,8 @@ if page == "Nouveau Trade":
             etat_mental = infer_mental_state(float(sizing_score), float(sl_score), float(revenge_score), float(overtrading_score), float(bias_score))
             trade_id = f"{trade_date.strftime('%Y%m%d')}_{datetime.now().strftime('%H%M%S')}_{uuid.uuid4().hex[:8]}"
             image_rel = save_screenshot(trade_screenshot, trade_id) if trade_screenshot else ""
-            upsert_account(compte, float(profit_objectif_pct), float(max_daily_loss_usd_trade))
+            existing_cap = float(account_settings.get(compte, {}).get("initial_capital", 10000.0))
+            upsert_account(compte, float(profit_objectif_pct), float(max_daily_loss_usd_trade), existing_cap)
             save_trade(
                 {
                     "Date": pd.to_datetime(trade_date).strftime("%Y-%m-%d"),
@@ -782,19 +835,39 @@ elif page == "Dashboard":
         st.plotly_chart(performance_figure(trades), use_container_width=True, theme=None)
 
 elif page == "📅 Calendrier":
-    st.subheader("📅 Calendrier Économique")
-    st.caption("Annonces US à fort impact (source Investing.com).")
+    st.subheader("📅 Calendrier")
+    st.markdown("### Suivi d'Activité")
+    now_dt = pd.Timestamp.now()
+    cal_html = trading_activity_calendar_html(trades, int(now_dt.year), int(now_dt.month))
+    st.markdown(cal_html, unsafe_allow_html=True)
+
+    st.markdown("### News économiques - Investing.com (FR)")
+    st.caption("Filtre US à fort impact.")
     components.html(
         """
         <iframe
-            src="https://sslecal2.investing.com?columns=exc_flags,exc_currency,exc_importance,exc_actual,exc_forecast,exc_previous&importance=3&features=datepicker,timezone,timeselector,filters&countries=5&calType=day&timeZone=55&lang=12"
+            src="https://fr.investing.com/economic-calendar/"
             width="100%"
-            height="760"
+            height="680"
             frameborder="0"
             style="border:1px solid #1F1F24;border-radius:12px;background:#0E1117;">
         </iframe>
         """,
-        height=780,
+        height=700,
+    )
+    st.markdown("### News économiques - Forex Factory")
+    st.caption("Source complémentaire (US impact fort).")
+    components.html(
+        """
+        <iframe
+            src="https://www.dailyfx.com/economic-calendar"
+            width="100%"
+            height="520"
+            frameborder="0"
+            style="border:1px solid #1F1F24;border-radius:12px;background:#0E1117;">
+        </iframe>
+        """,
+        height=540,
     )
 
 elif page == "Mes Stats":
@@ -938,7 +1011,8 @@ elif page == "⚙️ Paramètres":
             key="settings_edit_loss",
         )
         if st.button("💾 Enregistrer les modifications", key="settings_save_account"):
-            upsert_account(edit_name, float(edit_obj), float(edit_loss))
+            existing_cap = float(accounts_df[accounts_df["Nom"].astype(str) == edit_name]["Initial_Capital"].iloc[-1]) if "Initial_Capital" in accounts_df.columns else 10000.0
+            upsert_account(edit_name, float(edit_obj), float(edit_loss), existing_cap)
             st.success(f"Compte '{edit_name}' mis à jour.")
             st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
@@ -965,32 +1039,61 @@ elif page == "⚙️ Paramètres":
 
 elif page == "Mon Compte/Finance":
     st.subheader("Mon Compte/Finance - Gestion du capital")
-    if "capital_initial" not in st.session_state:
-        st.session_state.capital_initial = 10000.0
-    st.session_state.capital_initial = st.number_input("Capital initial ($)", min_value=0.0, value=float(st.session_state.capital_initial), step=100.0, key="capital_initial_input")
-    m = compute_metrics(trades)
-    m_global = compute_metrics(all_trades)
-    capital_actuel = st.session_state.capital_initial + m_global["net_pnl"]
-    c1, c2 = st.columns(2)
-    c1.markdown(f'<div class="tv-card"><div class="tv-title">Capital initial</div><div class="tv-value">${st.session_state.capital_initial:,.2f}</div></div>', unsafe_allow_html=True)
-    c2.markdown(f'<div class="tv-card tv-card-profit"><div class="tv-title">Capital actuel</div><div class="tv-value">${capital_actuel:,.2f}</div></div>', unsafe_allow_html=True)
-    st.markdown("### Synthèse financière (tous les comptes)")
-    g1, g2, g3 = st.columns(3)
-    g1.markdown(f'<div class="tv-card"><div class="tv-title">Balance Totale</div><div class="tv-value">${capital_actuel:,.2f}</div></div>', unsafe_allow_html=True)
-    g2.markdown(f'<div class="tv-card"><div class="tv-title">Profit Total</div><div class="tv-value">${m_global["net_pnl"]:,.2f}</div></div>', unsafe_allow_html=True)
-    g3.markdown(f'<div class="tv-card"><div class="tv-title">Drawdown Total</div><div class="tv-value">${m_global["drawdown_actuel"]:,.2f} ({m_global["drawdown_pct"]:.2f}%)</div></div>', unsafe_allow_html=True)
-    if account_names:
+    if not account_names:
+        st.info("Aucun compte disponible. Crée d'abord un compte depuis Nouveau Trade.")
+    else:
+        finance_default = selected_compte if selected_compte in account_names else account_names[0]
+        finance_compte = st.selectbox("Compte à analyser", account_names, index=account_names.index(finance_default), key="finance_compte")
+        finance_settings = account_settings.get(finance_compte, {"profit_pct": 10.0, "max_daily_loss_usd": 500.0, "initial_capital": 10000.0})
+        finance_initial = st.number_input(
+            "Capital initial ($)",
+            min_value=0.0,
+            value=float(finance_settings.get("initial_capital", 10000.0)),
+            step=100.0,
+            key="capital_initial_input",
+        )
+        if st.button("💾 Enregistrer le capital du compte", key="save_capital_finance"):
+            upsert_account(
+                finance_compte,
+                float(finance_settings.get("profit_pct", 10.0)),
+                float(finance_settings.get("max_daily_loss_usd", 500.0)),
+                float(finance_initial),
+            )
+            st.success(f"Capital initial mis à jour pour {finance_compte}.")
+            st.rerun()
+
+        trades_finance = all_trades[all_trades["Compte"].astype(str) == finance_compte].copy()
+        m = compute_metrics(trades_finance)
+        capital_actuel = float(finance_initial) + float(m["net_pnl"])
+        c1, c2 = st.columns(2)
+        c1.markdown(f'<div class="tv-card"><div class="tv-title">Capital initial ({finance_compte})</div><div class="tv-value">${finance_initial:,.2f}</div></div>', unsafe_allow_html=True)
+        c2.markdown(f'<div class="tv-card tv-card-profit"><div class="tv-title">Capital actuel ({finance_compte})</div><div class="tv-value">${capital_actuel:,.2f}</div></div>', unsafe_allow_html=True)
+
+        st.markdown("### Synthèse financière du compte sélectionné")
+        g1, g2, g3 = st.columns(3)
+        g1.markdown(f'<div class="tv-card"><div class="tv-title">Balance</div><div class="tv-value">${capital_actuel:,.2f}</div></div>', unsafe_allow_html=True)
+        g2.markdown(f'<div class="tv-card"><div class="tv-title">Profit total</div><div class="tv-value">${m["net_pnl"]:,.2f}</div></div>', unsafe_allow_html=True)
+        g3.markdown(f'<div class="tv-card"><div class="tv-title">Drawdown</div><div class="tv-value">${m["drawdown_actuel"]:,.2f} ({m["drawdown_pct"]:.2f}%)</div></div>', unsafe_allow_html=True)
+
+        st.markdown("### Vue consolidée de tous les comptes")
         account_totals = (
             all_trades.groupby("Compte", as_index=False)["Profit"].sum()
             if not all_trades.empty
             else pd.DataFrame(columns=["Compte", "Profit"])
         )
-        merged_accounts = pd.DataFrame({"Compte": account_names}).merge(account_totals, on="Compte", how="left")
+        accounts_meta = sheet_accounts.copy()
+        if accounts_meta.empty:
+            accounts_meta = pd.DataFrame({"Nom": account_names, "Initial_Capital": [10000.0] * len(account_names)})
+        if "Initial_Capital" not in accounts_meta.columns:
+            accounts_meta["Initial_Capital"] = 10000.0
+        accounts_meta = accounts_meta.rename(columns={"Nom": "Compte"})[["Compte", "Initial_Capital"]]
+        merged_accounts = pd.DataFrame({"Compte": account_names}).merge(accounts_meta, on="Compte", how="left").merge(account_totals, on="Compte", how="left")
+        merged_accounts["Initial_Capital"] = pd.to_numeric(merged_accounts["Initial_Capital"], errors="coerce").fillna(10000.0)
         merged_accounts["Profit"] = pd.to_numeric(merged_accounts["Profit"], errors="coerce").fillna(0.0)
-        merged_accounts["Balance ($)"] = float(st.session_state.capital_initial) + merged_accounts["Profit"]
-        merged_accounts = merged_accounts.rename(columns={"Profit": "Profit Total ($)"})
+        merged_accounts["Balance ($)"] = merged_accounts["Initial_Capital"] + merged_accounts["Profit"]
+        merged_accounts = merged_accounts.rename(columns={"Initial_Capital": "Capital Initial ($)", "Profit": "Profit Total ($)"})
         st.dataframe(
-            merged_accounts[["Compte", "Balance ($)", "Profit Total ($)"]].sort_values("Profit Total ($)", ascending=False),
+            merged_accounts[["Compte", "Capital Initial ($)", "Profit Total ($)", "Balance ($)"]].sort_values("Profit Total ($)", ascending=False),
             use_container_width=True,
             hide_index=True,
         )

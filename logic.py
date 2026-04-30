@@ -45,7 +45,7 @@ COLUMNS = [
     "High_Water_Mark",
     "Image",
 ]
-ACCOUNT_COLUMNS = ["Nom", "Objectif_Pct", "Max_Loss_USD"]
+ACCOUNT_COLUMNS = ["Nom", "Objectif_Pct", "Max_Loss_USD", "Initial_Capital"]
 
 # Compatibilite : l'ancienne constante (plus utilisee pour la persistance)
 CSV_FILE = "trades_papa.csv"
@@ -396,13 +396,14 @@ def load_accounts_from_sheet() -> pd.DataFrame:
     df["Nom"] = df["Nom"].astype(str).str.strip()
     df["Objectif_Pct"] = pd.to_numeric(df["Objectif_Pct"], errors="coerce").fillna(10.0)
     df["Max_Loss_USD"] = pd.to_numeric(df["Max_Loss_USD"], errors="coerce").fillna(500.0)
+    df["Initial_Capital"] = pd.to_numeric(df["Initial_Capital"], errors="coerce").fillna(10000.0)
     df = df[df["Nom"] != ""].copy()
     df["_key"] = df["Nom"].str.lower()
     df = df.drop_duplicates("_key", keep="last").drop(columns=["_key"]).reset_index(drop=True)
     return df
 
 
-def upsert_account(name: str, objectif_pct: float, max_loss_usd: float) -> None:
+def upsert_account(name: str, objectif_pct: float, max_loss_usd: float, initial_capital: float = 10000.0) -> None:
     clean = str(name).strip()
     if not clean:
         return
@@ -425,6 +426,7 @@ def upsert_account(name: str, objectif_pct: float, max_loss_usd: float) -> None:
         table["Nom"] = table["Nom"].astype(str).str.strip()
         table["Objectif_Pct"] = pd.to_numeric(table["Objectif_Pct"], errors="coerce").fillna(10.0)
         table["Max_Loss_USD"] = pd.to_numeric(table["Max_Loss_USD"], errors="coerce").fillna(500.0)
+        table["Initial_Capital"] = pd.to_numeric(table["Initial_Capital"], errors="coerce").fillna(10000.0)
         key = clean.lower()
         mask = table["Nom"].astype(str).str.lower() == key
         if mask.any():
@@ -432,6 +434,7 @@ def upsert_account(name: str, objectif_pct: float, max_loss_usd: float) -> None:
             table.at[idx, "Nom"] = clean
             table.at[idx, "Objectif_Pct"] = float(objectif_pct)
             table.at[idx, "Max_Loss_USD"] = float(max_loss_usd)
+            table.at[idx, "Initial_Capital"] = float(initial_capital)
             # Supprime d'éventuels doublons résiduels
             table["_key"] = table["Nom"].astype(str).str.lower()
             table = table.drop_duplicates("_key", keep="last").drop(columns=["_key"])
@@ -445,6 +448,7 @@ def upsert_account(name: str, objectif_pct: float, max_loss_usd: float) -> None:
                                 "Nom": clean,
                                 "Objectif_Pct": float(objectif_pct),
                                 "Max_Loss_USD": float(max_loss_usd),
+                                "Initial_Capital": float(initial_capital),
                             }
                         ]
                     ),
