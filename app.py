@@ -449,6 +449,8 @@ for _, row in sheet_accounts.iterrows():
 trade_accounts = sorted([x for x in all_trades["Compte"].astype(str).unique().tolist() if x]) if not all_trades.empty else []
 empty_accounts = [str(x).strip() for x in sheet_accounts["Nom"].astype(str).tolist() if str(x).strip()]
 account_names = sorted(set(trade_accounts + empty_accounts))
+if "pending_trade_compte" not in st.session_state:
+    st.session_state.pending_trade_compte = ""
 
 with st.sidebar:
     compte_options = ["Tous les comptes"]
@@ -489,20 +491,28 @@ with st.sidebar:
     )
     page = st.radio(
         "Navigation",
-        ["Dashboard", "Calendrier", "Mes Stats", "Analyses Avancées", "Mon Trading", "Mon Compte/Finance", "Nouveau Trade", "⚙️ Paramètres"],
+        ["Dashboard", "📅 Calendrier", "Mes Stats", "Analyses Avancées", "Mon Trading", "Mon Compte/Finance", "Nouveau Trade", "⚙️ Paramètres"],
         key="main_nav",
     )
     st.markdown("---")
     st.header("Importer depuis TradingView")
     uploaded_file = st.file_uploader(
-        "Importer un fichier TradingView",
+        "Importer un fichier TradingView (1GB per file)",
         type=["csv"],
         key="tv_import",
         help="1GB per file",
     )
     if uploaded_file is not None:
         try:
-            raw_df = pd.read_csv(uploaded_file)
+            raw_df = pd.read_csv(uploaded_file, encoding="utf-8-sig")
+        except Exception:
+            try:
+                uploaded_file.seek(0)
+                raw_df = pd.read_csv(uploaded_file, sep=None, engine="python", encoding="utf-8-sig", on_bad_lines="skip")
+            except Exception:
+                uploaded_file.seek(0)
+                raw_df = pd.read_csv(uploaded_file, sep=";", encoding="utf-8-sig", on_bad_lines="skip")
+        try:
             converted = convert_tradingview_to_mvizion(raw_df)
             if converted.empty:
                 st.error("Aucun trade valide trouve dans le fichier.")
@@ -525,14 +535,22 @@ if page == "Nouveau Trade":
             trade_date = st.date_input("Date", value=date.today(), key="trade_date")
             a1, a2 = st.columns([1.4, 1.0])
             with a1:
-                actif = st.text_input("Actif", placeholder="Ex: EURUSD", key="trade_actif")
+                actif = st.selectbox(
+                    "Actif",
+                    ["MNQ1!", "MES1!", "DXY", "MGC1!", "NAS100"],
+                    key="trade_actif",
+                )
             with a2:
                 trade_type = st.radio("Type", ["BUY", "SELL"], horizontal=True, key="trade_type")
             trade_account_options = account_names.copy() if account_names else ["Compte 1"]
             add_account_label = "➕ Ajouter un compte"
             if add_account_label not in trade_account_options:
                 trade_account_options.append(add_account_label)
-            compte = st.selectbox("Compte", trade_account_options, key="trade_compte")
+            pending = str(st.session_state.get("pending_trade_compte", "")).strip()
+            selected_index = trade_account_options.index(pending) if pending in trade_account_options else 0
+            compte = st.selectbox("Compte", trade_account_options, index=selected_index, key="trade_compte")
+            if pending:
+                st.session_state.pending_trade_compte = ""
             if compte == add_account_label:
                 st.info("Crée un compte ci-dessous puis ajoute le trade.")
             compte_type = st.selectbox("Type de Compte", ["Evaluation", "Funded", "Live"], key="trade_compte_type")
@@ -581,12 +599,13 @@ if page == "Nouveau Trade":
                             "profit_pct": float(new_account_profit_pct),
                             "max_daily_loss_usd": float(new_account_max_loss),
                         }
-                        st.session_state.trade_compte = clean_name
+                        st.session_state.pending_trade_compte = clean_name
                         st.success(f"Compte '{clean_name}' ajouté.")
                         st.rerun()
         with top_right:
             prix_entree = st.number_input("Prix Entree", min_value=0.0, value=0.0, step=0.01, key="trade_prix_entree")
-            prix_sortie = st.number_input("Prix Sortie", min_value=0.0, value=0.0, step=0.01, key="trade_prix_sortie")
+            prix_tp = st.number_input("TP", min_value=0.0, value=0.0, step=0.01, key="trade_prix_tp")
+            prix_sl = st.number_input("Prix du SL", min_value=0.0, value=0.0, step=0.01, key="trade_prix_sl")
             quantite = st.number_input("Quantite", min_value=0.0, value=0.0, step=0.01, key="trade_quantite")
             frais = st.number_input("Frais", min_value=0.0, value=0.0, step=0.01, key="trade_frais")
             sortie = st.selectbox("Sortie", ["SL", "TP", "BE", "TP Partiel"], key="trade_sortie")
@@ -601,21 +620,19 @@ if page == "Nouveau Trade":
             bias_score = st.slider("Coherence Biais", 0, 20, 10, key="slider_bias")
             high_water_mark = st.number_input("High_Water_Mark", min_value=0.0, value=0.0, step=10.0, key="trade_high_water_mark")
         trade_screenshot = st.file_uploader(
-            "Capture d'écran du graphique",
+            "Capture d'écran du graphique (1GB per file)",
             type=["png", "jpg", "jpeg"],
             key="trade_graph_screenshot",
             help="1GB per file",
         )
         submit = st.form_submit_button("Ajouter Trade", use_container_width=True)
     if submit:
-        if not actif.strip():
-            st.error("Le champ Actif est obligatoire.")
-        elif compte == "➕ Ajouter un compte":
+        if compte == "➕ Ajouter un compte":
             st.error("Sélectionne un compte valide ou crée-en un avant d'ajouter le trade.")
         elif quantite <= 0:
             st.error("La quantite doit etre superieure a zero.")
         else:
-            profit = (prix_sortie - prix_entree) * quantite - frais
+            profit = (prix_tp - prix_entree) * quantite - frais
             etat_mental = infer_mental_state(float(sizing_score), float(sl_score), float(revenge_score), float(overtrading_score), float(bias_score))
             trade_id = f"{trade_date.strftime('%Y%m%d')}_{datetime.now().strftime('%H%M%S')}_{uuid.uuid4().hex[:8]}"
             image_rel = save_screenshot(trade_screenshot, trade_id) if trade_screenshot else ""
@@ -623,10 +640,10 @@ if page == "Nouveau Trade":
             save_trade(
                 {
                     "Date": pd.to_datetime(trade_date).strftime("%Y-%m-%d"),
-                    "Actif": actif.strip().upper(),
+                    "Actif": str(actif).strip().upper(),
                     "Type": trade_type,
                     "Prix Entree": float(prix_entree),
-                    "Prix Sortie": float(prix_sortie),
+                    "Prix Sortie": float(prix_tp),
                     "Quantite": float(quantite),
                     "Frais": float(frais),
                     "Profit": float(profit),
@@ -764,16 +781,21 @@ elif page == "Dashboard":
     else:
         st.plotly_chart(performance_figure(trades), use_container_width=True, theme=None)
 
-elif page == "Calendrier":
-    st.subheader("Calendrier - Vue mensuelle des profits")
-    if trades.empty:
-        st.info("Aucun trade disponible.")
-    else:
-        monthly = trades.copy()
-        monthly["Mois"] = monthly["Date"].dt.to_period("M").astype(str)
-        monthly_summary = monthly.groupby("Mois", as_index=False)["Profit"].sum()
-        monthly_summary["Mois Label"] = pd.to_datetime(monthly_summary["Mois"] + "-01").apply(format_month_fr)
-        st.dataframe(monthly_summary[["Mois Label", "Profit"]], use_container_width=True, hide_index=True)
+elif page == "📅 Calendrier":
+    st.subheader("📅 Calendrier Économique")
+    st.caption("Annonces US à fort impact (source Investing.com).")
+    components.html(
+        """
+        <iframe
+            src="https://sslecal2.investing.com?columns=exc_flags,exc_currency,exc_importance,exc_actual,exc_forecast,exc_previous&importance=3&features=datepicker,timezone,timeselector,filters&countries=5&calType=day&timeZone=55&lang=12"
+            width="100%"
+            height="760"
+            frameborder="0"
+            style="border:1px solid #1F1F24;border-radius:12px;background:#0E1117;">
+        </iframe>
+        """,
+        height=780,
+    )
 
 elif page == "Mes Stats":
     st.subheader("Mes Stats - Statistiques detaillees")
@@ -947,7 +969,28 @@ elif page == "Mon Compte/Finance":
         st.session_state.capital_initial = 10000.0
     st.session_state.capital_initial = st.number_input("Capital initial ($)", min_value=0.0, value=float(st.session_state.capital_initial), step=100.0, key="capital_initial_input")
     m = compute_metrics(trades)
-    capital_actuel = st.session_state.capital_initial + m["net_pnl"]
+    m_global = compute_metrics(all_trades)
+    capital_actuel = st.session_state.capital_initial + m_global["net_pnl"]
     c1, c2 = st.columns(2)
     c1.markdown(f'<div class="tv-card"><div class="tv-title">Capital initial</div><div class="tv-value">${st.session_state.capital_initial:,.2f}</div></div>', unsafe_allow_html=True)
     c2.markdown(f'<div class="tv-card tv-card-profit"><div class="tv-title">Capital actuel</div><div class="tv-value">${capital_actuel:,.2f}</div></div>', unsafe_allow_html=True)
+    st.markdown("### Synthèse financière (tous les comptes)")
+    g1, g2, g3 = st.columns(3)
+    g1.markdown(f'<div class="tv-card"><div class="tv-title">Balance Totale</div><div class="tv-value">${capital_actuel:,.2f}</div></div>', unsafe_allow_html=True)
+    g2.markdown(f'<div class="tv-card"><div class="tv-title">Profit Total</div><div class="tv-value">${m_global["net_pnl"]:,.2f}</div></div>', unsafe_allow_html=True)
+    g3.markdown(f'<div class="tv-card"><div class="tv-title">Drawdown Total</div><div class="tv-value">${m_global["drawdown_actuel"]:,.2f} ({m_global["drawdown_pct"]:.2f}%)</div></div>', unsafe_allow_html=True)
+    if account_names:
+        account_totals = (
+            all_trades.groupby("Compte", as_index=False)["Profit"].sum()
+            if not all_trades.empty
+            else pd.DataFrame(columns=["Compte", "Profit"])
+        )
+        merged_accounts = pd.DataFrame({"Compte": account_names}).merge(account_totals, on="Compte", how="left")
+        merged_accounts["Profit"] = pd.to_numeric(merged_accounts["Profit"], errors="coerce").fillna(0.0)
+        merged_accounts["Balance ($)"] = float(st.session_state.capital_initial) + merged_accounts["Profit"]
+        merged_accounts = merged_accounts.rename(columns={"Profit": "Profit Total ($)"})
+        st.dataframe(
+            merged_accounts[["Compte", "Balance ($)", "Profit Total ($)"]].sort_values("Profit Total ($)", ascending=False),
+            use_container_width=True,
+            hide_index=True,
+        )

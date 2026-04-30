@@ -612,7 +612,33 @@ def find_column(columns: list[str], candidates: list[str]) -> str | None:
         key = _normalize_col_name(candidate)
         if key in normalized:
             return normalized[key]
+    for col in columns:
+        col_norm = _normalize_col_name(col)
+        for candidate in candidates:
+            cand_norm = _normalize_col_name(candidate)
+            if cand_norm and (cand_norm in col_norm or col_norm in cand_norm):
+                return col
     return None
+
+
+def _parse_mixed_datetime(series: pd.Series) -> pd.Series:
+    txt = series.astype(str).str.strip()
+    dt = pd.to_datetime(txt, errors="coerce", utc=False)
+    miss = dt.isna()
+    if miss.any():
+        dt_alt = pd.to_datetime(txt[miss], errors="coerce", dayfirst=True, utc=False)
+        dt.loc[miss] = dt_alt
+    miss = dt.isna()
+    if miss.any():
+        numeric = pd.to_numeric(txt[miss], errors="coerce")
+        unix = pd.to_datetime(numeric, unit="s", errors="coerce", utc=False)
+        # Si timestamps en millisecondes
+        miss_unix = unix.isna()
+        if miss_unix.any():
+            unix_ms = pd.to_datetime(numeric[miss_unix], unit="ms", errors="coerce", utc=False)
+            unix.loc[miss_unix] = unix_ms
+        dt.loc[miss] = unix
+    return dt
 
 
 def convert_tradingview_to_mvizion(import_df: pd.DataFrame) -> pd.DataFrame:
@@ -620,37 +646,45 @@ def convert_tradingview_to_mvizion(import_df: pd.DataFrame) -> pd.DataFrame:
         return pd.DataFrame(columns=COLUMNS)
 
     cols = [str(c) for c in import_df.columns]
-    col_date = find_column(cols, ["date", "time", "timestamp", "open time", "close time", "entry time"])
-    col_symbol = find_column(cols, ["symbol", "ticker", "instrument", "asset", "actif", "market"])
+    col_date = find_column(cols, ["date", "time", "timestamp", "open time", "close time", "entry time", "created", "execution time", "datetime"])
+    col_date_only = find_column(cols, ["date only", "trade date", "day"])
+    col_time_only = find_column(cols, ["time only", "trade time", "hour"])
+    col_symbol = find_column(cols, ["symbol", "ticker", "instrument", "asset", "actif", "market", "contract", "instrument name"])
     col_open = find_column(cols, ["open price", "entry price", "open", "buy price", "prix entree", "entry"])
     col_close = find_column(cols, ["close price", "exit price", "close", "sell price", "prix sortie", "exit"])
     col_price = find_column(cols, ["price", "avg price", "fill price", "average price"])
     col_qty = find_column(cols, ["qty", "quantity", "size", "contracts", "quantite", "volume"])
     col_fee = find_column(cols, ["fee", "fees", "commission", "commissions", "frais", "cost"])
-    col_profit = find_column(cols, ["profit", "pnl", "net profit", "realized pnl", "result", "pl"])
-    col_side = find_column(cols, ["type", "side", "direction"])
-    col_session = find_column(cols, ["session"])
+    col_profit = find_column(cols, ["profit", "pnl", "net profit", "realized pnl", "result", "pl", "gain", "loss"])
+    col_side = find_column(cols, ["type", "side", "direction", "position"])
+    col_session = find_column(cols, ["session", "market session"])
 
     if col_date is None or col_symbol is None:
         return pd.DataFrame(columns=COLUMNS)
 
     out = pd.DataFrame()
-    out["Date"] = pd.to_datetime(import_df[col_date], errors="coerce")
+    if col_date:
+        out["Date"] = _parse_mixed_datetime(import_df[col_date])
+    elif col_date_only and col_time_only:
+        combo = import_df[col_date_only].astype(str).str.strip() + " " + import_df[col_time_only].astype(str).str.strip()
+        out["Date"] = _parse_mixed_datetime(combo)
+    else:
+        out["Date"] = pd.NaT
     out["Actif"] = import_df[col_symbol].astype(str).str.strip().str.upper()
     out["Type"] = import_df[col_side].astype(str).str.title() if col_side else "Buy"
-    out["Prix Entree"] = pd.to_numeric(import_df[col_open], errors="coerce") if col_open else None
-    out["Prix Sortie"] = pd.to_numeric(import_df[col_close], errors="coerce") if col_close else None
+    out["Prix Entree"] = pd.to_numeric(import_df[col_open].astype(str).str.replace(",", ".", regex=False).str.replace(r"[^\d\.\-]", "", regex=True), errors="coerce") if col_open else None
+    out["Prix Sortie"] = pd.to_numeric(import_df[col_close].astype(str).str.replace(",", ".", regex=False).str.replace(r"[^\d\.\-]", "", regex=True), errors="coerce") if col_close else None
     if col_price:
-        price_series = pd.to_numeric(import_df[col_price], errors="coerce")
+        price_series = pd.to_numeric(import_df[col_price].astype(str).str.replace(",", ".", regex=False).str.replace(r"[^\d\.\-]", "", regex=True), errors="coerce")
         out["Prix Entree"] = out["Prix Entree"].fillna(price_series) if col_open else price_series
         out["Prix Sortie"] = out["Prix Sortie"].fillna(price_series) if col_close else price_series
     out["Prix Entree"] = pd.to_numeric(out["Prix Entree"], errors="coerce").fillna(0.0)
     out["Prix Sortie"] = pd.to_numeric(out["Prix Sortie"], errors="coerce").fillna(0.0)
-    out["Quantite"] = pd.to_numeric(import_df[col_qty], errors="coerce").fillna(1.0) if col_qty else 1.0
-    out["Frais"] = pd.to_numeric(import_df[col_fee], errors="coerce").fillna(0.0) if col_fee else 0.0
+    out["Quantite"] = pd.to_numeric(import_df[col_qty].astype(str).str.replace(",", ".", regex=False).str.replace(r"[^\d\.\-]", "", regex=True), errors="coerce").fillna(1.0) if col_qty else 1.0
+    out["Frais"] = pd.to_numeric(import_df[col_fee].astype(str).str.replace(",", ".", regex=False).str.replace(r"[^\d\.\-]", "", regex=True), errors="coerce").fillna(0.0) if col_fee else 0.0
 
     if col_profit:
-        out["Profit"] = pd.to_numeric(import_df[col_profit], errors="coerce")
+        out["Profit"] = pd.to_numeric(import_df[col_profit].astype(str).str.replace(",", ".", regex=False).str.replace(r"[^\d\.\-]", "", regex=True), errors="coerce")
     else:
         out["Profit"] = (out["Prix Sortie"] - out["Prix Entree"]) * out["Quantite"] - out["Frais"]
 
