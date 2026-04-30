@@ -348,6 +348,8 @@ st.markdown(
         [data-testid='stSidebarContent'] { padding-top: 0px !important; margin-top: 0px !important; }
         [data-testid='stSidebarContent'] > * { padding-top: 0px !important; margin-top: 0px !important; }
         section[data-testid='stSidebar'] { padding-top: 0px !important; margin-top: 0px !important; }
+        [data-testid='stSidebarUserContent'] { padding-top: 20px !important; }
+        [data-testid='stSidebarNav'] { display: none !important; }
         section[data-testid='stSidebar'] > div {
             padding-top: 0px !important;
             margin-top: 0px !important;
@@ -385,7 +387,7 @@ st.markdown(
             position: relative;
             display: block;
             text-align: center;
-            font-size: 60px !important;
+            font-size: 55px !important;
             font-weight: 700;
             font-style: italic;
             background: linear-gradient(to right, #BF953F, #FCF6BA, #B38728, #FBF5B7, #AA771C);
@@ -397,10 +399,7 @@ st.markdown(
             -webkit-text-fill-color: transparent;
             margin: 0 !important;
             margin-top: 0 !important;
-            padding-top: 10px !important;
-            padding-bottom: 10px !important;
-            padding-left: 0 !important;
-            padding-right: 0 !important;
+            padding: 0 !important;
             white-space: nowrap;
             letter-spacing: 0.5px;
             line-height: 0.9;
@@ -580,6 +579,7 @@ if "pending_trade_compte" not in st.session_state:
 
 with st.sidebar:
     st.sidebar.markdown("<div class=\"tv-logo\">Mat'Sa</div>", unsafe_allow_html=True)
+    st.sidebar.markdown('<div style="height: 20px;"></div>', unsafe_allow_html=True)
 
     compte_options = ["Tous les comptes"]
     if account_names:
