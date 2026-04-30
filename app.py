@@ -354,13 +354,42 @@ st.markdown(
         }
         .block-container { padding-top: 2.35rem; padding-bottom: 1.15rem; max-width: 1460px; }
         .tv-logo {
-            font-size: 32px;
+            position: relative;
+            display: block;
+            text-align: center;
+            font-size: 48px;
             font-weight: 700;
             font-style: italic;
             color: #D4AF37;
-            margin-bottom: 1rem;
-            letter-spacing: 0.4px;
+            margin: 0.2rem 0 1.2rem 0;
+            padding: 0.25rem 0.15rem 0.35rem 0.15rem;
+            letter-spacing: 0.5px;
+            line-height: 1.05;
             font-family: "Cormorant Garamond", "Palatino Linotype", "Times New Roman", serif;
+            overflow: hidden;
+            text-shadow: 0 1px 0 rgba(255, 255, 255, 0.12), 0 8px 24px rgba(212, 175, 55, 0.22);
+        }
+        .tv-logo::after {
+            content: "";
+            position: absolute;
+            top: -12%;
+            left: -45%;
+            width: 38%;
+            height: 130%;
+            background: linear-gradient(
+                110deg,
+                rgba(255, 255, 255, 0.0) 0%,
+                rgba(255, 248, 220, 0.65) 45%,
+                rgba(255, 255, 255, 0.0) 100%
+            );
+            transform: skewX(-22deg);
+            animation: logo-shimmer 3.4s ease-in-out infinite;
+            pointer-events: none;
+        }
+        @keyframes logo-shimmer {
+            0% { left: -52%; }
+            55% { left: 112%; }
+            100% { left: 112%; }
         }
         .tv-card {
             background: linear-gradient(180deg, #121218 0%, #101015 100%);
@@ -513,6 +542,8 @@ if "pending_trade_compte" not in st.session_state:
     st.session_state.pending_trade_compte = ""
 
 with st.sidebar:
+    st.sidebar.markdown("<div class=\"tv-logo\">Mat'Sa</div>", unsafe_allow_html=True)
+
     compte_options = ["Tous les comptes"]
     if account_names:
         compte_options += account_names
@@ -523,7 +554,6 @@ with st.sidebar:
         objectif_profit_pct = st.number_input("Objectif de Profit (%)", min_value=1.0, max_value=100.0, value=float(selected_settings["profit_pct"]), step=0.5, key="objectif_profit_pct")
         max_daily_loss_usd = st.number_input("Max Daily Loss ($)", min_value=1.0, value=float(selected_settings["max_daily_loss_usd"]), step=25.0, key="max_daily_loss_usd")
 
-    st.sidebar.markdown("<div class=\"tv-logo\">Mat'Sa</div>", unsafe_allow_html=True)
     components.html(
         """
         <div style="display:block;padding-right:8px;">
