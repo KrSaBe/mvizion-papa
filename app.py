@@ -357,17 +357,26 @@ st.markdown(
             position: relative;
             display: block;
             text-align: center;
-            font-size: 48px;
+            font-size: clamp(100px, 8vw, 140px);
             font-weight: 700;
             font-style: italic;
             color: #D4AF37;
-            margin: 0.2rem 0 1.2rem 0;
-            padding: 0.25rem 0.15rem 0.35rem 0.15rem;
+            margin: 0px !important;
+            padding: 0px !important;
             letter-spacing: 0.5px;
-            line-height: 1.05;
+            line-height: 0.95;
             font-family: "Cormorant Garamond", "Palatino Linotype", "Times New Roman", serif;
             overflow: hidden;
             text-shadow: 0 1px 0 rgba(255, 255, 255, 0.12), 0 8px 24px rgba(212, 175, 55, 0.22);
+        }
+        [data-testid="stSidebar"] .stMarkdown {
+            margin: 0px !important;
+            padding: 0px !important;
+        }
+        [data-testid="stSidebar"] .stMarkdown > div,
+        [data-testid="stSidebar"] .stMarkdown p {
+            margin: 0px !important;
+            padding: 0px !important;
         }
         .tv-logo::after {
             content: "";
