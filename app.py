@@ -409,19 +409,39 @@ st.markdown(
             width: 100% !important;
             text-align: center;
             font-size: 55px !important;
-            font-weight: 700;
-            font-style: italic;
-            background: none !important;
-            color: #FFFFFF !important;
-            -webkit-text-fill-color: #FFFFFF !important;
+            font-weight: 900;
+            font-style: normal;
+            background: linear-gradient(to bottom, #FCF6BA 0%, #BF953F 50%, #FCF6BA 100%);
+            -webkit-background-clip: text !important;
+            background-clip: text;
+            color: transparent !important;
+            -webkit-text-fill-color: transparent !important;
             margin: -30px auto 20px auto !important;
             padding: 25px 0 !important;
             white-space: nowrap;
             letter-spacing: 0.5px;
             line-height: 0.9;
-            font-family: "Inter", sans-serif;
+            font-family: "Playfair Display", serif;
             text-shadow: none !important;
             animation: none !important;
+        }
+        .tv-logo::before,
+        .tv-logo::after {
+            content: '✦';
+            position: absolute;
+            font-size: 18px;
+            line-height: 1;
+            color: #FCF6BA;
+            pointer-events: none;
+            opacity: 0.95;
+        }
+        .tv-logo::before {
+            top: -4px;
+            right: 14%;
+        }
+        .tv-logo::after {
+            bottom: -4px;
+            left: 14%;
         }
         [data-testid="stSidebar"] .stMarkdown {
             margin: 0px !important;
@@ -441,6 +461,20 @@ st.markdown(
         }
         [data-testid="stSidebar"] [data-testid="stSelectbox"] {
             margin-top: 25px !important;
+        }
+        [data-testid="stSidebar"] [data-testid="stRadio"] label p {
+            font-size: 14px !important;
+            letter-spacing: 1px !important;
+            text-transform: uppercase !important;
+            font-weight: 500 !important;
+            color: #E0E0E0 !important;
+        }
+        [data-testid="stFileUploader"] .material-symbols-rounded,
+        [data-testid="stSidebar"] .material-symbols-rounded {
+            font-size: 0 !important;
+            line-height: 0 !important;
+            width: 0 !important;
+            overflow: hidden !important;
         }
         .tv-card {
             background: linear-gradient(180deg, #121218 0%, #101015 100%);
@@ -634,14 +668,14 @@ with st.sidebar:
         "Navigation",
         [
             "Dashboard",
-            "🗓️ Calendrier",
-            "📰 News Économiques",
+            "Calendrier",
+            "News Economiques",
             "Mes Stats",
             "Analyses Avancées",
             "Mon Trading",
             "Mon Compte/Finance",
             "Nouveau Trade",
-            "⚙️ Paramètres",
+            "Parametres",
         ],
         key="main_nav",
     )
@@ -933,15 +967,15 @@ elif page == "Dashboard":
     else:
         st.plotly_chart(performance_figure(trades), use_container_width=True, theme=None)
 
-elif page == "🗓️ Calendrier":
-    st.subheader("🗓️ Calendrier")
+elif page == "Calendrier":
+    st.subheader("Calendrier")
     st.markdown("### Suivi d'Activité")
     now_dt = pd.Timestamp.now()
     cal_html = trading_activity_calendar_html(trades, int(now_dt.year), int(now_dt.month))
     st.markdown(cal_html, unsafe_allow_html=True)
 
-elif page == "📰 News Économiques":
-    st.subheader("📰 News Économiques")
+elif page == "News Economiques":
+    st.subheader("News Economiques")
     st.markdown("### News économiques - Investing.com (FR)")
     st.caption("Filtre US à fort impact.")
     components.html(
@@ -1068,8 +1102,8 @@ elif page == "Mon Trading":
         ordered_cols = ["Date", "Actif", "Session", "Type", "Prix Entree", "Prix Sortie", "Quantite", "Frais", "Profit", "Sortie", "Compte", "Compte_Type"]
         st.dataframe(display_df[ordered_cols], use_container_width=True, hide_index=True)
 
-elif page == "⚙️ Paramètres":
-    st.subheader("⚙️ Paramètres")
+elif page == "Parametres":
+    st.subheader("Parametres")
     st.caption("Gère les comptes enregistrés dans la feuille Accounts : consultation, mise à jour des limites et suppression.")
 
     accounts_df = load_accounts_from_sheet()
