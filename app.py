@@ -346,14 +346,16 @@ ensure_csv_exists()
 st.markdown(
     """
     <style>
-        /* 1. Suppression Radical des Ghost Texts & Icônes Buggées */
-        .material-symbols-rounded, .material-icons, svg, [data-testid="collapsedControl"],
-        .st-emotion-cache-1dt77as, [data-testid="stExpander"] details summary svg {
+        /* 1. SUPPRESSION TOTALE DES TEXTES FANTÔMES */
+        .material-symbols-rounded, .material-icons, [data-testid="collapsedControl"],
+        .st-emotion-cache-1dt77as, [data-testid="stExpander"] details summary svg,
+        [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p:contains("arrow"),
+        summary::-webkit-details-marker {
             display: none !important;
             visibility: hidden !important;
         }
 
-        /* 2. Logo Mat'Sa Premium Italic Gold */
+        /* 2. LOGO MAT'SA LUXE */
         .tv-logo {
             display: block !important;
             text-align: center;
@@ -366,6 +368,7 @@ st.markdown(
             -webkit-text-fill-color: transparent !important;
             margin: -20px auto 30px auto !important;
             position: relative;
+            line-height: 0.9;
         }
         .tv-logo::before, .tv-logo::after {
             content: '✦'; position: absolute; color: #FFD700; font-size: 16px; font-style: normal !important;
@@ -373,34 +376,45 @@ st.markdown(
         .tv-logo::before { top: 0; right: 10%; }
         .tv-logo::after { bottom: 0; left: 10%; }
 
-        /* 3. Navigation Style TradeVizion */
+        /* 3. NAVIGATION STYLE TRADEVIZION */
         [data-testid="stSidebar"] { background-color: #0E1117 !important; border-right: 1px solid #1f2937; }
         [data-testid="stSidebarContent"] { padding-top: 0px !important; }
-
-        /* Cache les ronds radio */
         [data-testid="stRadio"] div[role="radiogroup"] input { display: none !important; }
-
-        /* Style des items de menu */
         [data-testid="stSidebar"] div[role="radiogroup"] label {
-            background: transparent !important;
-            border-left: 4px solid transparent !important;
-            color: #808495 !important;
-            padding: 8px 16px !important;
-            margin-bottom: 4px !important;
-            transition: all 0.2s ease !important;
-            cursor: pointer !important;
+            background: transparent !important; border-left: 4px solid transparent !important;
+            color: #808495 !important; padding: 10px 16px !important; margin-bottom: 4px !important;
+            transition: all 0.2s ease !important; cursor: pointer !important;
         }
-
-        /* L'item actif (La barre verte TradeVizion) */
         [data-testid="stSidebar"] div[role="radiogroup"] label[data-checked="true"] {
             background: rgba(255, 255, 255, 0.05) !important;
             border-left: 4px solid #00FFA3 !important;
             color: #FFFFFF !important;
         }
+        [data-testid="stSidebar"] div[role="radiogroup"] label p { font-size: 14px !important; font-weight: 500 !important; }
 
-        /* 4. Fix Expander & Sidebar */
-        [data-testid="stExpander"] { border: 1px solid #2F3645 !important; background: transparent !important; }
-        [data-testid="stSidebar"] * { font-family: 'Inter', sans-serif !important; }
+        /* 4. RESTAURATION DES CARTES DU DASHBOARD */
+        .stApp { background: #050505; color: #FFFFFF; font-family: "Inter", sans-serif; }
+        .tv-card {
+            background: linear-gradient(180deg, #121218 0%, #101015 100%);
+            border: 1px solid #1F1F24;
+            border-radius: 12px;
+            padding: 14px;
+            margin-bottom: 10px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28);
+        }
+        .tv-title { color: #A1A1AA; font-size: 0.69rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.55px; }
+        .tv-value { color: #FFFFFF; font-size: 1.62rem; font-weight: 800; }
+        .pnl-glow { color: #00FFA3; text-shadow: 0 0 14px rgba(0,255,163,0.28); }
+        .tvs-badge {
+            background: radial-gradient(circle at 30% 30%, rgba(99,102,241,0.46), rgba(99,102,241,0.16));
+            border: 1px solid #6366F1; border-radius: 999px;
+            width: 80px; height: 80px; display: flex; align-items: center; justify-content: center;
+            margin: 0 auto; color: #FFFFFF; font-size: 1.45rem; font-weight: 800;
+        }
+
+        /* 5. FIX EXPANDER PARAMETRES */
+        [data-testid="stExpander"] { border: 1px solid #1F2937 !important; border-radius: 8px !important; background: #111827 !important; }
+        [data-testid="stExpander"] summary { color: #FFFFFF !important; font-size: 14px !important; }
     </style>
     """,
     unsafe_allow_html=True,
