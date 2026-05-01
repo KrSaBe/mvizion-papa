@@ -373,20 +373,15 @@ st.markdown(
         :root {
             --sidebar-background-color: #0E1117 !important;
         }
-        span[data-testid="stWidgetLabel"] p, .material-symbols-rounded, [data-testid="stMarkdownContainer"] p:empty {
+        span.material-symbols-rounded,
+        span.material-icons,
+        .st-emotion-cache-1dt77as {
             display: none !important;
             visibility: hidden !important;
         }
-        span[data-testid="stWidgetLabel"] p:not(:empty),
-        div[data-testid="stWidgetLabel"] p:not(:empty) {
-            display: block !important;
-            visibility: visible !important;
-        }
-        [data-testid="stSidebar"] [data-testid="stExpander"],
-        [data-testid="stSidebar"] [data-testid="stExpander"] details,
-        [data-testid="stSidebar"] [data-testid="stExpander"] summary {
-            height: auto !important;
-            line-height: normal !important;
+        [data-testid="stExpander"] details summary svg {
+            display: none !important;
+            visibility: hidden !important;
         }
         .stApp { background: #050505; color: #FFFFFF; font-family: "Inter", sans-serif; }
         [data-testid="stSidebar"] { background-color: #0E1117 !important; background: #0E1117 !important; border-right: 1px solid #1f2937; padding-top: 0px !important; margin-top: 0px !important; }
@@ -412,10 +407,11 @@ st.markdown(
             padding-top: 0px !important;
             margin-top: 0px !important;
         }
-        [data-testid="stSidebar"] * { font-size: 1.02rem !important; font-weight: 620 !important; font-family: "Inter", sans-serif !important; }
+        [data-testid="stSidebar"] * { font-size: 1.02rem !important; font-weight: 620 !important; font-family: 'Inter', sans-serif !important; }
         [data-testid="stSidebar"] label, [data-testid="stSidebar"] p, [data-testid="stSidebar"] span {
             color: #E5E7EB !important;
             letter-spacing: 0.2px;
+            font-family: "Inter", sans-serif !important;
         }
         .block-container { padding-top: 2.35rem; padding-bottom: 1.15rem; max-width: 1460px; }
         .tv-logo {
@@ -478,6 +474,9 @@ st.markdown(
         [data-testid="stSidebar"] [data-testid="stSelectbox"] {
             margin-top: 25px !important;
         }
+        [data-testid="stRadio"] div[role="radiogroup"] input {
+            display: none !important;
+        }
         [data-testid="stSidebar"] div[role="radiogroup"] label {
             border-left: 4px solid transparent !important;
             color: #808495 !important;
@@ -496,7 +495,8 @@ st.markdown(
             background: rgba(255, 255, 255, 0.05) !important;
             border-left: 4px solid #00FFA3 !important;
             color: #FFFFFF !important;
-            padding-left: 15px !important;
+            padding: 10px 15px !important;
+            border-radius: 0 4px 4px 0 !important;
             transition: all 0.3s ease;
         }
         [data-testid="stSidebar"] div[role="radiogroup"] label p {
