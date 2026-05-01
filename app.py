@@ -374,12 +374,12 @@ st.markdown(
             --sidebar-background-color: #0E1117 !important;
         }
         .stApp { background: #050505; color: #FFFFFF; font-family: "Inter", sans-serif; }
-        [data-testid="stSidebar"] { background-color: #0E1117 !important; background: #0E1117 !important; border-right: 1px solid #1f2937; padding-top: 2rem !important; margin-top: 0px !important; }
+        [data-testid="stSidebar"] { background-color: #0E1117 !important; background: #0E1117 !important; border-right: 1px solid #1f2937; padding-top: 0px !important; margin-top: 0px !important; }
         [data-testid="stSidebarContent"] {
             position: relative;
             background-color: #0E1117 !important;
             background: #0E1117 !important;
-            padding-top: 2rem !important;
+            padding-top: 0px !important;
             margin-top: 0px !important;
             padding-bottom: 1.2rem !important;
         }
@@ -387,7 +387,7 @@ st.markdown(
             background-color: #0E1117 !important;
             background: #0E1117 !important;
         }
-        section[data-testid='stSidebar'] > div { padding-top: 2rem !important; }
+        section[data-testid='stSidebar'] > div { padding-top: 0px !important; }
         [data-testid="stSidebarContent"] > div,
         [data-testid="stSidebar"] > div,
         [data-testid="stSidebar"] > div > div,
@@ -397,9 +397,9 @@ st.markdown(
             padding-top: 0px !important;
             margin-top: 0px !important;
         }
-        [data-testid="stSidebar"] * { font-size: 1.02rem !important; font-weight: 620 !important; color: #F3F4F6; }
+        [data-testid="stSidebar"] * { font-size: 1.02rem !important; font-weight: 620 !important; color: #FFFFFF !important; font-family: "Inter", sans-serif !important; }
         [data-testid="stSidebar"] label, [data-testid="stSidebar"] p, [data-testid="stSidebar"] span {
-            color: #F9FAFB !important;
+            color: #E5E7EB !important;
             letter-spacing: 0.2px;
         }
         .block-container { padding-top: 2.35rem; padding-bottom: 1.15rem; max-width: 1460px; }
@@ -411,48 +411,17 @@ st.markdown(
             font-size: 55px !important;
             font-weight: 700;
             font-style: italic;
-            background: linear-gradient(to right, #BF953F, #FCF6BA, #B38728, #FBF5B7, #AA771C);
-            background-size: 200% auto;
-            background-position: 0% 50%;
-            -webkit-background-clip: text !important;
-            background-clip: text;
-            color: transparent !important;
-            -webkit-text-fill-color: transparent;
-            margin: 0 auto 50px auto !important;
+            background: none !important;
+            color: #FFFFFF !important;
+            -webkit-text-fill-color: #FFFFFF !important;
+            margin: -30px auto 20px auto !important;
             padding: 25px 0 !important;
             white-space: nowrap;
             letter-spacing: 0.5px;
             line-height: 0.9;
-            font-family: "Cormorant Garamond", "Palatino Linotype", "Times New Roman", serif;
-            text-shadow: 0 1px 0 rgba(255, 255, 255, 0.1), 0 10px 28px rgba(212, 175, 55, 0.24);
-            animation: gold-shimmer 7.5s linear infinite;
-        }
-        .tv-logo::before,
-        .tv-logo::after {
-            content: '✦';
-            position: absolute;
-            width: 24px;
-            height: 24px;
-            font-size: 24px;
-            line-height: 1;
-            pointer-events: none;
-            z-index: 2;
-            content: '✦' !important;
-            color: #FFD700 !important;
-            font-weight: bold !important;
-            text-shadow: 0 0 15px rgba(255, 215, 0, 0.9) !important;
-            filter: none !important;
-            animation: twinkle 3s ease-in-out infinite;
-        }
-        .tv-logo::before {
-            top: -10px;
-            right: -10px;
-            animation-delay: 0.15s;
-        }
-        .tv-logo::after {
-            bottom: -10px;
-            left: -10px;
-            animation-delay: 1.4s;
+            font-family: "Inter", sans-serif;
+            text-shadow: none !important;
+            animation: none !important;
         }
         [data-testid="stSidebar"] .stMarkdown {
             margin: 0px !important;
@@ -472,14 +441,6 @@ st.markdown(
         }
         [data-testid="stSidebar"] [data-testid="stSelectbox"] {
             margin-top: 25px !important;
-        }
-        @keyframes twinkle {
-            0%, 100% { opacity: 0.3; transform: scale(1); }
-            50% { opacity: 1; transform: scale(1.2); }
-        }
-        @keyframes gold-shimmer {
-            0% { background-position: 0% 50%; }
-            100% { background-position: 200% 50%; }
         }
         .tv-card {
             background: linear-gradient(180deg, #121218 0%, #101015 100%);
