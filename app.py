@@ -28,6 +28,8 @@ from logic import (
     upsert_account,
 )
 
+st.set_page_config(page_title="Mat'Sa", page_icon="📈", layout="wide")
+
 
 ETAT_MENTAL_COLORS = {
     "Concentre": "#60A5FA",
@@ -339,314 +341,66 @@ def trading_activity_calendar_html(df: pd.DataFrame, year: int, month: int) -> s
     """
 
 
-st.set_page_config(page_title="Mat'Sa", layout="wide")
-
-# Hard reset prioritaire (chargé avant le style principal)
-st.markdown(
-    """
-    <style>
-        [data-testid='stSidebarContent'] { padding-top: 0px !important; margin-top: 0px !important; }
-        [data-testid='stSidebarContent'] > * { padding-top: 0px !important; margin-top: 0px !important; }
-        section[data-testid='stSidebar'] { padding-top: 0px !important; margin-top: 0px !important; }
-        [data-testid='stSidebarUserContent'] { padding-top: 0px !important; margin-top: 0px !important; }
-        [data-testid='stSidebarNav'] { display: none !important; }
-        [data-testid='stSidebarUserContent'] > div:first-child,
-        [data-testid='stSidebarContent'] > div:first-child,
-        section[data-testid='stSidebar'] > div > div:first-child {
-            margin-top: 0px !important;
-            padding-top: 0px !important;
-        }
-        section[data-testid='stSidebar'] > div {
-            padding-top: 0px !important;
-            margin-top: 0px !important;
-        }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-
 ensure_csv_exists()
 
 st.markdown(
     """
     <style>
-        :root {
-            --sidebar-background-color: #0E1117 !important;
-        }
-        span.material-symbols-rounded,
-        span.material-icons,
-        .st-emotion-cache-1dt77as {
+        /* 1. Suppression Radical des Ghost Texts & Icônes Buggées */
+        .material-symbols-rounded, .material-icons, svg, [data-testid="collapsedControl"],
+        .st-emotion-cache-1dt77as, [data-testid="stExpander"] details summary svg {
             display: none !important;
             visibility: hidden !important;
         }
-        [data-testid="stExpander"] details summary svg {
-            display: none !important;
-            visibility: hidden !important;
-        }
-        .stApp { background: #050505; color: #FFFFFF; font-family: "Inter", sans-serif; }
-        [data-testid="stSidebar"] { background-color: #0E1117 !important; background: #0E1117 !important; border-right: 1px solid #1f2937; padding-top: 0px !important; margin-top: 0px !important; }
-        [data-testid="stSidebarContent"] {
-            position: relative;
-            background-color: #0E1117 !important;
-            background: #0E1117 !important;
-            padding-top: 0px !important;
-            margin-top: 0px !important;
-            padding-bottom: 1.2rem !important;
-        }
-        [data-testid="stSidebarUserContent"] {
-            background-color: #0E1117 !important;
-            background: #0E1117 !important;
-        }
-        section[data-testid='stSidebar'] > div { padding-top: 0px !important; }
-        [data-testid="stSidebarContent"] > div,
-        [data-testid="stSidebar"] > div,
-        [data-testid="stSidebar"] > div > div,
-        [data-testid="stSidebar"] div.block-container,
-        [data-testid="stSidebar"] .st-emotion-cache-1cypcdb,
-        [data-testid="stSidebar"] .st-emotion-cache-16idsys {
-            padding-top: 0px !important;
-            margin-top: 0px !important;
-        }
-        [data-testid="stSidebar"] * { font-size: 1.02rem !important; font-weight: 620 !important; font-family: 'Inter', sans-serif !important; }
-        [data-testid="stSidebar"] label, [data-testid="stSidebar"] p, [data-testid="stSidebar"] span {
-            color: #E5E7EB !important;
-            letter-spacing: 0.2px;
-            font-family: "Inter", sans-serif !important;
-        }
-        .block-container { padding-top: 2.35rem; padding-bottom: 1.15rem; max-width: 1460px; }
+
+        /* 2. Logo Mat'Sa Premium Italic Gold */
         .tv-logo {
-            position: relative;
             display: block !important;
-            width: 100% !important;
             text-align: center;
-            font-size: 55px !important;
+            font-size: 52px !important;
             font-style: italic !important;
             font-family: "Playfair Display", serif !important;
             font-weight: 900 !important;
-            background: linear-gradient(180deg, #FFD700 0%, #BF953F 45%, #8C6D31 50%, #BF953F 55%, #FFD700 100%);
+            background: linear-gradient(180deg, #FFD700 0%, #BF953F 45%, #8C6D31 50%, #BF953F 55%, #FFD700 100%) !important;
             -webkit-background-clip: text !important;
-            background-clip: text;
-            color: transparent !important;
             -webkit-text-fill-color: transparent !important;
-            filter: drop-shadow(0 0 1px rgba(255, 215, 0, 0.3));
-            margin: -30px auto 20px auto !important;
-            padding: 25px 0 !important;
-            white-space: nowrap;
-            letter-spacing: 0.5px;
-            line-height: 0.9;
-            animation: none !important;
+            margin: -20px auto 30px auto !important;
+            position: relative;
         }
-        .tv-logo::before,
-        .tv-logo::after {
-            content: '✦';
-            position: absolute;
-            font-size: 14px;
-            line-height: 1;
-            color: #FFD700;
-            font-style: normal !important;
-            pointer-events: none;
-            filter: none;
+        .tv-logo::before, .tv-logo::after {
+            content: '✦'; position: absolute; color: #FFD700; font-size: 16px; font-style: normal !important;
         }
-        .tv-logo::before {
-            top: -2px;
-            right: 10%;
-        }
-        .tv-logo::after {
-            bottom: -2px;
-            left: 10%;
-        }
-        [data-testid="stSidebar"] .stMarkdown {
-            margin: 0px !important;
-            padding: 0px !important;
-        }
-        [data-testid="stSidebar"] .stMarkdown > div,
-        [data-testid="stSidebar"] .stMarkdown p {
-            margin: 0px !important;
-            padding: 0px !important;
-        }
-        [data-testid="stSidebar"] [data-testid="stWidgetLabel"],
-        [data-testid="stSidebar"] [data-testid="stSelectbox"] > label,
-        [data-testid="stSidebar"] .stSelectbox:first-of-type,
-        [data-testid="stSidebar"] .stSelectbox:first-of-type > div {
-            margin-top: 0px !important;
-            padding-top: 0px !important;
-        }
-        [data-testid="stSidebar"] [data-testid="stSelectbox"] {
-            margin-top: 25px !important;
-        }
-        [data-testid="stRadio"] div[role="radiogroup"] input {
-            display: none !important;
-        }
+        .tv-logo::before { top: 0; right: 10%; }
+        .tv-logo::after { bottom: 0; left: 10%; }
+
+        /* 3. Navigation Style TradeVizion */
+        [data-testid="stSidebar"] { background-color: #0E1117 !important; border-right: 1px solid #1f2937; }
+        [data-testid="stSidebarContent"] { padding-top: 0px !important; }
+
+        /* Cache les ronds radio */
+        [data-testid="stRadio"] div[role="radiogroup"] input { display: none !important; }
+
+        /* Style des items de menu */
         [data-testid="stSidebar"] div[role="radiogroup"] label {
+            background: transparent !important;
             border-left: 4px solid transparent !important;
             color: #808495 !important;
-            padding: 10px 15px !important;
-            font-size: 14px !important;
-            text-transform: none !important;
-            font-weight: 500 !important;
-            background: transparent !important;
-            margin-bottom: 8px !important;
-            border-radius: 4px;
-            transition: all 0.3s ease;
+            padding: 8px 16px !important;
+            margin-bottom: 4px !important;
+            transition: all 0.2s ease !important;
+            cursor: pointer !important;
         }
-        [data-testid="stSidebar"] div[role="radiogroup"] label[data-checked="true"],
-        [data-testid="stSidebar"] div[role="radiogroup"] label[aria-checked="true"],
-        [data-testid="stSidebar"] div[role="radiogroup"] label:has(input:checked) {
+
+        /* L'item actif (La barre verte TradeVizion) */
+        [data-testid="stSidebar"] div[role="radiogroup"] label[data-checked="true"] {
             background: rgba(255, 255, 255, 0.05) !important;
             border-left: 4px solid #00FFA3 !important;
             color: #FFFFFF !important;
-            padding: 10px 15px !important;
-            border-radius: 0 4px 4px 0 !important;
-            transition: all 0.3s ease;
         }
-        [data-testid="stSidebar"] div[role="radiogroup"] label p {
-            font-size: 14px !important;
-            text-transform: none !important;
-            font-weight: 500 !important;
-            letter-spacing: normal !important;
-            color: inherit !important;
-        }
-        [data-testid="stSidebar"] div[role="radiogroup"] label[data-checked="true"] p,
-        [data-testid="stSidebar"] div[role="radiogroup"] label[aria-checked="true"] p,
-        [data-testid="stSidebar"] div[role="radiogroup"] label:has(input:checked) p {
-            color: #FFFFFF !important;
-            font-weight: 600 !important;
-        }
-        [data-testid="stFileUploader"] button[kind="secondary"] {
-            background-color: #262730 !important;
-            color: #FAFAFA !important;
-            border: 1px solid #3F3F46 !important;
-        }
-        .tv-card {
-            background: linear-gradient(180deg, #121218 0%, #101015 100%);
-            border: 1px solid #1F1F24;
-            border-radius: 12px;
-            padding: 14px 14px 12px 14px;
-            min-height: 112px;
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28);
-        }
-        .tv-card-profit { border: 1px solid #1F1F24; }
-        .tv-title {
-            color: #A1A1AA;
-            font-size: 0.69rem;
-            margin-top: 7px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.55px;
-            line-height: 1.15;
-        }
-        .tv-value {
-            color: #FFFFFF;
-            font-size: 1.62rem;
-            font-weight: 800;
-            font-family: "Inter", sans-serif;
-            letter-spacing: 0.15px;
-            line-height: 1.05;
-        }
-        .pnl-glow { color: #00FFA3; text-shadow: 0 0 14px rgba(0,255,163,0.28), 0 0 24px rgba(0,255,163,0.14); }
-        .tvs-badge {
-            background: radial-gradient(circle at 30% 30%, rgba(99,102,241,0.46), rgba(99,102,241,0.16));
-            border: 1px solid #6366F1;
-            border-radius: 999px;
-            width: 92px;
-            height: 92px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 2px auto 0 auto;
-            color: #FFFFFF;
-            font-size: 1.45rem;
-            font-weight: 800;
-            box-shadow: 0 0 22px rgba(99,102,241,0.2), inset 0 0 12px rgba(99,102,241,0.15);
-        }
-        .risk-badge {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            padding: 4px 10px;
-            border-radius: 999px;
-            font-size: 0.78rem;
-            font-weight: 700;
-            border: 1px solid transparent;
-            line-height: 1;
-            vertical-align: middle;
-        }
-        .risk-green { background: #0F2E1D; color: #86EFAC; border-color: #166534; }
-        .risk-orange { background: #3A2308; color: #FBBF24; border-color: #B45309; }
-        .risk-red { background: #3A0D11; color: #FCA5A5; border-color: #B91C1C; animation: blink-risk 1s infinite; }
-        .elite-topbar {
-            background: #111827;
-            border: 1px solid #1f2937;
-            border-radius: 8px;
-            padding: 5px 10px;
-            color: #E5E7EB;
-            font-size: 0.8rem;
-            margin-bottom: 0.6rem;
-            white-space: nowrap;
-            overflow-x: auto;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        .elite-num {
-            font-family: "Consolas", "SFMono-Regular", "Roboto Mono", monospace;
-            font-weight: 700;
-            color: #FFFFFF;
-        }
-        @keyframes blink-risk {
-            0% { opacity: 1; }
-            50% { opacity: 0.45; }
-            100% { opacity: 1; }
-        }
-        .stFormSubmitButton > button {
-            background: linear-gradient(180deg, #6366F1 0%, #4F46E5 100%);
-            border: 1px solid #1E40AF; color: #FFFFFF; width: 100%; min-height: 44px; border-radius: 8px; font-weight: 700;
-            box-shadow: 0 8px 18px rgba(79, 70, 229, 0.3);
-            letter-spacing: 0.2px;
-        }
-        .stFormSubmitButton > button:hover {
-            background: linear-gradient(180deg, #7376FA 0%, #5B50EE 100%);
-            border-color: #6366F1;
-        }
-        [data-testid="stHorizontalBlock"] { gap: 0.72rem; }
-        .stPlotlyChart > div { border-radius: 12px; }
-        h3 { margin-top: 0.45rem; margin-bottom: 0.5rem; }
-        .stMarkdown p { margin-bottom: 0.45rem; }
-        .stProgress > div > div > div > div { background-color: #6366F1; }
-        .stDataFrame { border: 1px solid #1F1F24; border-radius: 12px; overflow: hidden; }
-        [data-testid="stMetricValue"], [data-testid="stMetricLabel"] { color: #FFFFFF !important; }
-        [data-testid="stSelectbox"] > div, [data-testid="stNumberInput"] > div {
-            border-color: #1F1F24 !important;
-            border-radius: 10px !important;
-        }
-        /* Premium Gallery (captures trade — seul usage st.image) */
-        [data-testid="stImage"] {
-            display: flex !important;
-            justify-content: center !important;
-            width: 100%;
-        }
-        [data-testid="stImage"] img,
-        [data-testid="stImage"] picture img {
-            border-radius: 12px !important;
-            box-shadow: 0 18px 48px rgba(0, 0, 0, 0.55), 0 4px 14px rgba(0, 0, 0, 0.35) !important;
-            max-width: min(920px, 100%) !important;
-            width: auto !important;
-            object-fit: contain;
-        }
-        .session-chart-wrap {
-            margin: 0.8rem 0 1.1rem 0;
-            padding: 0.7rem;
-            border-radius: 12px;
-            border: 1px solid #1F1F24;
-            background: #090B10;
-        }
-        .settings-card {
-            border: 1px solid #1F1F24;
-            border-radius: 12px;
-            padding: 14px;
-            margin: 0.55rem 0 0.95rem 0;
-            background: linear-gradient(180deg, #11141C 0%, #0C0F15 100%);
-        }
+
+        /* 4. Fix Expander & Sidebar */
+        [data-testid="stExpander"] { border: 1px solid #2F3645 !important; background: transparent !important; }
+        [data-testid="stSidebar"] * { font-family: 'Inter', sans-serif !important; }
     </style>
     """,
     unsafe_allow_html=True,
