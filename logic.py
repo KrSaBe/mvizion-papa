@@ -42,6 +42,8 @@ COLUMNS = [
     "Revenge_Score",
     "Overtrading_Score",
     "Bias_Score",
+    "Execution_Score_Global",
+    "High_Water_Mark_Saisie",
     "High_Water_Mark",
     "Image",
 ]
@@ -49,6 +51,55 @@ ACCOUNT_COLUMNS = ["Nom", "Objectif_Pct", "Max_Loss_USD", "Initial_Capital"]
 
 # Compatibilite : l'ancienne constante (plus utilisee pour la persistance)
 CSV_FILE = "trades_papa.csv"
+
+# Préférences UI (police logo, couleur d'accent) — fichier JSON à la racine du projet
+UI_SETTINGS_FILE = "matsa_ui_settings.json"
+DEFAULT_UI_SETTINGS: dict[str, str] = {
+    "primary_font": "Playfair Display",
+    "accent_color": "#00FFA3",
+}
+
+
+def _ui_settings_path() -> str:
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), UI_SETTINGS_FILE)
+
+
+def load_ui_settings() -> dict[str, str]:
+    path = _ui_settings_path()
+    if not os.path.isfile(path):
+        return dict(DEFAULT_UI_SETTINGS)
+    try:
+        import json
+
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+        out = dict(DEFAULT_UI_SETTINGS)
+        if isinstance(data, dict):
+            pf = str(data.get("primary_font", "")).strip()
+            if pf:
+                out["primary_font"] = pf
+            ac = str(data.get("accent_color", "")).strip()
+            if ac:
+                out["accent_color"] = ac if ac.startswith("#") else f"#{ac}"
+        return out
+    except Exception:
+        logging.getLogger("mvizion.logic").exception("Lecture mat_sa_ui_settings impossible")
+        return dict(DEFAULT_UI_SETTINGS)
+
+
+def save_ui_settings(settings: dict[str, str]) -> None:
+    import json
+
+    path = _ui_settings_path()
+    out = dict(DEFAULT_UI_SETTINGS)
+    for k in DEFAULT_UI_SETTINGS:
+        if k in settings and str(settings[k]).strip():
+            out[k] = str(settings[k]).strip()
+    if not out["accent_color"].startswith("#"):
+        out["accent_color"] = "#" + out["accent_color"]
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(out, f, indent=2, ensure_ascii=False)
+
 
 MONTHS_FR = {
     1: "Jan",
@@ -319,6 +370,8 @@ def _default_for_column(col: str) -> Any:
         "Revenge_Score",
         "Overtrading_Score",
         "Bias_Score",
+        "Execution_Score_Global",
+        "High_Water_Mark_Saisie",
         "High_Water_Mark",
         "Profit_Objectif_Pct",
         "Max_Daily_Loss_USD",
@@ -521,6 +574,8 @@ def _postprocess_loaded_df(df: pd.DataFrame) -> pd.DataFrame:
         "Revenge_Score",
         "Overtrading_Score",
         "Bias_Score",
+        "Execution_Score_Global",
+        "High_Water_Mark_Saisie",
         "High_Water_Mark",
         "Profit_Objectif_Pct",
         "Max_Daily_Loss_USD",
@@ -712,6 +767,8 @@ def convert_tradingview_to_mvizion(import_df: pd.DataFrame) -> pd.DataFrame:
     out["Revenge_Score"] = 0.0
     out["Overtrading_Score"] = 0.0
     out["Bias_Score"] = 0.0
+    out["Execution_Score_Global"] = 0.0
+    out["High_Water_Mark_Saisie"] = 0.0
     out["High_Water_Mark"] = 0.0
     out["Image"] = ""
     out["Date"] = out["Date"].dt.strftime("%Y-%m-%d")
@@ -739,8 +796,8 @@ def infer_mental_state(
     overtrading_score: float,
     bias_score: float,
 ) -> str:
-    # Score global 0-20
-    score = (sizing_score + sl_score + (20 - revenge_score) + (20 - overtrading_score) + bias_score) / 5.0
+    # Moyenne simple des 5 notes (0–20), alignée sur le score d'exécution affiché
+    score = (sizing_score + sl_score + revenge_score + overtrading_score + bias_score) / 5.0
     if score >= 16:
         return "Calme"
     if score >= 13:

@@ -23,12 +23,42 @@ from logic import (
     infer_mental_state,
     load_trades,
     load_accounts_from_sheet,
+    load_ui_settings,
     save_screenshot,
     save_trade,
+    save_ui_settings,
     upsert_account,
 )
 
 st.set_page_config(page_title="Mat'Sa", page_icon="📈", layout="wide")
+
+if "primary_font" not in st.session_state or "accent_color" not in st.session_state:
+    _ui_pref = load_ui_settings()
+    st.session_state.primary_font = _ui_pref["primary_font"]
+    st.session_state.accent_color = _ui_pref["accent_color"]
+
+
+def _safe_hex_color(value: str, default: str = "#00FFA3") -> str:
+    s = (value or default).strip()
+    if not s.startswith("#"):
+        s = "#" + s
+    if len(s) == 4 and s.startswith("#"):
+        s = "#" + s[1] * 2 + s[2] * 2 + s[3] * 2
+    if len(s) != 7:
+        return default
+    try:
+        int(s[1:], 16)
+    except ValueError:
+        return default
+    return s
+
+
+def _hex_to_rgb_csv(h: str) -> str:
+    h = _safe_hex_color(h)
+    r = int(h[1:3], 16)
+    g = int(h[3:5], 16)
+    b = int(h[5:7], 16)
+    return f"{r}, {g}, {b}"
 
 
 ETAT_MENTAL_COLORS = {
@@ -343,78 +373,236 @@ def trading_activity_calendar_html(df: pd.DataFrame, year: int, month: int) -> s
 
 ensure_csv_exists()
 
+_accent = _safe_hex_color(str(st.session_state.get("accent_color", "#00FFA3")))
+_font_logo = str(st.session_state.get("primary_font", "Playfair Display")).replace('"', "").replace(";", "")
+_accent_rgb = _hex_to_rgb_csv(_accent)
+
 st.markdown(
-    """
+    f"""
     <style>
-        /* 1. SUPPRESSION TOTALE DES TEXTES FANTÔMES */
-        .material-symbols-rounded, .material-icons, [data-testid="collapsedControl"],
-        .st-emotion-cache-1dt77as, [data-testid="stExpander"] details summary svg,
-        [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p:contains("arrow"),
-        summary::-webkit-details-marker {
+        @import url("https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400;0,700;1,400&family=Playfair+Display:ital,wght@0,900;1,900&family=Roboto:ital,wght@0,400;0,700;1,400&display=swap");
+
+        :root {{
+            --matsa-accent: {_accent};
+            --matsa-accent-rgb: {_accent_rgb};
+            --matsa-font-logo: "{_font_logo}", Georgia, "Times New Roman", serif;
+        }}
+
+        /* Kill-list : sidebar uniquement — ligatures + SVG natifs Streamlit */
+        [data-testid="stSidebar"] .material-symbols-rounded,
+        [data-testid="stSidebar"] .material-icons,
+        [data-testid="stSidebar"] svg,
+        [data-testid="stSidebar"] [data-testid="collapsedControl"],
+        [data-testid="stSidebar"] .st-emotion-cache-1dt77as {{
             display: none !important;
             visibility: hidden !important;
-        }
+        }}
+        summary::-webkit-details-marker {{ display: none !important; }}
 
-        /* 2. LOGO MAT'SA LUXE */
-        .tv-logo {
+        @-webkit-keyframes matsaLogoShine {{
+            0% {{ background-position: 0% 45%, 8% 52%; }}
+            100% {{ background-position: 100% 55%, 92% 48%; }}
+        }}
+        @keyframes matsaLogoShine {{
+            0% {{ background-position: 0% 45%, 8% 52%; }}
+            100% {{ background-position: 100% 55%, 92% 48%; }}
+        }}
+
+        /* Logo Mat'Sa — texture métal / or + léger mouvement de brillance */
+        .matsa-logo {{
             display: block !important;
             text-align: center;
             font-size: 52px !important;
             font-style: italic !important;
-            font-family: "Playfair Display", serif !important;
+            font-family: var(--matsa-font-logo) !important;
             font-weight: 900 !important;
-            background: linear-gradient(180deg, #FFD700 0%, #BF953F 45%, #8C6D31 50%, #BF953F 55%, #FFD700 100%) !important;
-            -webkit-background-clip: text !important;
-            -webkit-text-fill-color: transparent !important;
+            letter-spacing: 0.02em;
+            line-height: 0.95;
             margin: -20px auto 30px auto !important;
             position: relative;
-            line-height: 0.9;
-        }
-        .tv-logo::before, .tv-logo::after {
-            content: '✦'; position: absolute; color: #FFD700; font-size: 16px; font-style: normal !important;
-        }
-        .tv-logo::before { top: 0; right: 10%; }
-        .tv-logo::after { bottom: 0; left: 10%; }
+            background:
+                radial-gradient(ellipse 120% 80% at 50% 0%, rgba(255,255,255,0.55) 0%, transparent 42%),
+                linear-gradient(185deg,
+                    #fffef2 0%,
+                    #ffd700 8%,
+                    #c9a227 22%,
+                    #fff8dc 36%,
+                    #8b6914 50%,
+                    #f5e6a8 64%,
+                    #b8860b 78%,
+                    #ffe566 88%,
+                    #daa520 100%) !important;
+            background-size: 200% 200%, 200% 200% !important;
+            background-repeat: no-repeat !important;
+            background-position: 0% 50%, 0% 50% !important;
+            -webkit-animation: matsaLogoShine 7s ease-in-out infinite alternate !important;
+            animation: matsaLogoShine 7s ease-in-out infinite alternate !important;
+            -webkit-background-clip: text !important;
+            background-clip: text !important;
+            -webkit-text-fill-color: transparent !important;
+            color: transparent !important;
+            filter: drop-shadow(0 1px 0 rgba(0,0,0,0.45)) drop-shadow(0 0 12px rgba(255, 215, 0, 0.25));
+        }}
+        .matsa-logo::before, .matsa-logo::after {{
+            content: '✦';
+            position: absolute;
+            font-size: 16px;
+            font-style: normal !important;
+            color: #ffd700;
+            text-shadow: 0 0 8px rgba(255, 215, 0, 0.55);
+            -webkit-text-fill-color: #ffd700;
+            pointer-events: none;
+        }}
+        .matsa-logo::before {{ top: 0; right: 10%; }}
+        .matsa-logo::after {{ bottom: 0; left: 10%; }}
 
-        /* 3. NAVIGATION STYLE TRADEVIZION */
-        [data-testid="stSidebar"] { background-color: #0E1117 !important; border-right: 1px solid #1f2937; }
-        [data-testid="stSidebarContent"] { padding-top: 0px !important; }
-        [data-testid="stRadio"] div[role="radiogroup"] input { display: none !important; }
-        [data-testid="stSidebar"] div[role="radiogroup"] label {
-            background: transparent !important; border-left: 4px solid transparent !important;
-            color: #808495 !important; padding: 10px 16px !important; margin-bottom: 4px !important;
-            transition: all 0.2s ease !important; cursor: pointer !important;
-        }
-        [data-testid="stSidebar"] div[role="radiogroup"] label[data-checked="true"] {
+        /* Navigation TradeVizion */
+        [data-testid="stSidebar"] {{ background-color: #0E1117 !important; border-right: 1px solid #1f2937; }}
+        [data-testid="stSidebarContent"] {{ padding-top: 0px !important; }}
+        [data-testid="stRadio"] div[role="radiogroup"] input {{ display: none !important; }}
+        [data-testid="stSidebar"] div[role="radiogroup"] label {{
+            background: transparent !important;
+            border-left: 4px solid transparent !important;
+            color: #808495 !important;
+            padding: 10px 16px !important;
+            margin-bottom: 4px !important;
+            transition: all 0.2s ease !important;
+            cursor: pointer !important;
+        }}
+        [data-testid="stSidebar"] div[role="radiogroup"] label[data-checked="true"] {{
             background: rgba(255, 255, 255, 0.05) !important;
-            border-left: 4px solid #00FFA3 !important;
+            border-left: 4px solid var(--matsa-accent) !important;
             color: #FFFFFF !important;
-        }
-        [data-testid="stSidebar"] div[role="radiogroup"] label p { font-size: 14px !important; font-weight: 500 !important; }
+        }}
+        [data-testid="stSidebar"] div[role="radiogroup"] label p {{
+            font-size: 14px !important;
+            font-weight: 500 !important;
+        }}
 
-        /* 4. RESTAURATION DES CARTES DU DASHBOARD */
-        .stApp { background: #050505; color: #FFFFFF; font-family: "Inter", sans-serif; }
-        .tv-card {
+        /* Import sidebar — ligne Streamlit « X per file • types » (voir stFileUploaderDropzoneInstructions) */
+        [data-testid="stSidebar"] [data-testid="stFileUploader"] [data-testid="stFileUploaderDropzoneInstructions"] {{
+            display: none !important;
+            visibility: hidden !important;
+            height: 0 !important;
+            max-height: 0 !important;
+            overflow: hidden !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+            font-size: 0 !important;
+            line-height: 0 !important;
+        }}
+        .tv-upload-hint {{
+            font-size: 0.72rem;
+            color: #6B7280;
+            font-weight: 400;
+            margin: 0 0 6px 0;
+            line-height: 1.35;
+        }}
+
+        /* Cartes dashboard */
+        .stApp {{ background: #050505; color: #FFFFFF; font-family: "Inter", sans-serif; }}
+        .tv-card {{
             background: linear-gradient(180deg, #121218 0%, #101015 100%);
             border: 1px solid #1F1F24;
             border-radius: 12px;
             padding: 14px;
             margin-bottom: 10px;
             box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28);
-        }
-        .tv-title { color: #A1A1AA; font-size: 0.69rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.55px; }
-        .tv-value { color: #FFFFFF; font-size: 1.62rem; font-weight: 800; }
-        .pnl-glow { color: #00FFA3; text-shadow: 0 0 14px rgba(0,255,163,0.28); }
-        .tvs-badge {
+        }}
+        .tv-title {{ color: #A1A1AA; font-size: 0.69rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.55px; }}
+        .tv-value {{ color: #FFFFFF; font-size: 1.62rem; font-weight: 800; }}
+        .pnl-glow {{ color: var(--matsa-accent); text-shadow: 0 0 14px rgba(var(--matsa-accent-rgb), 0.35); }}
+        .tvs-badge {{
             background: radial-gradient(circle at 30% 30%, rgba(99,102,241,0.46), rgba(99,102,241,0.16));
-            border: 1px solid #6366F1; border-radius: 999px;
-            width: 80px; height: 80px; display: flex; align-items: center; justify-content: center;
-            margin: 0 auto; color: #FFFFFF; font-size: 1.45rem; font-weight: 800;
-        }
+            border: 1px solid #6366F1;
+            border-radius: 999px;
+            width: 80px;
+            height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto;
+            color: #FFFFFF;
+            font-size: 1.45rem;
+            font-weight: 800;
+        }}
 
-        /* 5. FIX EXPANDER PARAMETRES */
-        [data-testid="stExpander"] { border: 1px solid #1F2937 !important; border-radius: 8px !important; background: #111827 !important; }
-        [data-testid="stExpander"] summary { color: #FFFFFF !important; font-size: 14px !important; }
+        [data-testid="stExpander"] {{
+            border: 1px solid #1F2937 !important;
+            border-radius: 8px !important;
+            background: #111827 !important;
+        }}
+        [data-testid="stExpander"] summary {{ color: #FFFFFF !important; font-size: 14px !important; }}
+
+        div[data-testid="stVerticalBlockBorderWrapper"] {{
+            background: linear-gradient(180deg, #121218 0%, #101015 100%) !important;
+            border: 1px solid #1F1F24 !important;
+            border-radius: 12px !important;
+            padding: 14px 16px 18px 16px !important;
+            margin-bottom: 14px !important;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28) !important;
+        }}
+        div[data-testid="stVerticalBlockBorderWrapper"] [data-testid="stSlider"] [data-baseweb="track"],
+        div[data-testid="stVerticalBlockBorderWrapper"] [data-testid="stSlider"] [data-testid="stSliderTrack"] {{
+            height: 4px !important;
+            border-radius: 999px !important;
+            background: #1c1c22 !important;
+        }}
+        div[data-testid="stVerticalBlockBorderWrapper"] [data-testid="stSlider"] [data-baseweb="thumb"],
+        div[data-testid="stVerticalBlockBorderWrapper"] [data-testid="stSlider"] div[role="slider"] {{
+            height: 14px !important;
+            width: 14px !important;
+            background-color: var(--matsa-accent) !important;
+            border: 2px solid #0a0a0a !important;
+            box-shadow: 0 0 10px rgba(var(--matsa-accent-rgb), 0.45) !important;
+        }}
+        div[data-testid="stVerticalBlockBorderWrapper"] [data-testid="stSlider"] [data-baseweb="slider"] [data-baseweb="track"] > div:last-child {{
+            background: var(--matsa-accent) !important;
+            height: 4px !important;
+            border-radius: 999px !important;
+        }}
+
+        form[data-testid="stForm"] .stFormSubmitButton > button {{
+            background-color: #000000 !important;
+            color: #FFFFFF !important;
+            border: 1px solid #3F3F46 !important;
+            font-weight: 600 !important;
+        }}
+        form[data-testid="stForm"] .stFormSubmitButton > button:hover {{
+            border-color: var(--matsa-accent) !important;
+            box-shadow: 0 0 14px rgba(var(--matsa-accent-rgb), 0.45) !important;
+            color: #FFFFFF !important;
+        }}
+
+        /* Paramètres — bouton Sauvegarder (rouge) */
+        div.st-key-settings_save_btn button {{
+            width: 100% !important;
+            min-height: 48px !important;
+            background: linear-gradient(180deg, #7f1d1d 0%, #450a0a 100%) !important;
+            color: #ffffff !important;
+            border: 1px solid #991b1b !important;
+            font-weight: 700 !important;
+            border-radius: 8px !important;
+        }}
+        div.st-key-settings_save_btn button:hover {{
+            border-color: #ef4444 !important;
+            box-shadow: 0 0 16px rgba(239, 68, 68, 0.45) !important;
+            color: #ffffff !important;
+        }}
+
+        /* Chrome Streamlit — pas d'icônes SVG décoratives dans la barre supérieure / marges */
+        [data-testid="stHeader"] svg,
+        [data-testid="stToolbar"] svg,
+        [data-testid="stDecoration"] svg,
+        [data-testid="stDeployButton"] svg,
+        [data-testid="stMainMenu"] svg {{
+            display: none !important;
+            visibility: hidden !important;
+            width: 0 !important;
+            height: 0 !important;
+        }}
     </style>
     """,
     unsafe_allow_html=True,
@@ -436,7 +624,7 @@ if "pending_trade_compte" not in st.session_state:
     st.session_state.pending_trade_compte = ""
 
 with st.sidebar:
-    st.sidebar.markdown("<div class=\"tv-logo\">Mat'Sa</div>", unsafe_allow_html=True)
+    st.sidebar.markdown('<div class="matsa-logo">Mat\'Sa</div>', unsafe_allow_html=True)
 
     compte_options = ["Tous les comptes"]
     if account_names:
@@ -489,32 +677,48 @@ with st.sidebar:
         key="main_nav",
     )
     st.markdown("---")
-    st.header("Importer depuis TradingView")
+    st.markdown(
+        '<p class="tv-upload-hint">Fichiers acceptés : CSV, PDF, JPG, PNG (Max 1GB par fichier)</p>',
+        unsafe_allow_html=True,
+    )
     uploaded_file = st.file_uploader(
-        "Importer un fichier TradingView (1GB per file)",
-        type=["csv"],
+        "Importer depuis TradingView (CSV, PDF, JPG, PNG)",
+        type=["csv", "pdf", "jpg", "png"],
         key="tv_import",
-        help="1GB per file",
     )
     if uploaded_file is not None:
-        try:
-            raw_df = pd.read_csv(uploaded_file, encoding="utf-8-sig")
-        except Exception:
+        fname = (uploaded_file.name or "").lower()
+        ext = fname.rsplit(".", 1)[-1] if "." in fname else ""
+        if ext != "csv":
+            st.warning(
+                "L'import automatique des trades nécessite un export CSV TradingView. "
+                "Les fichiers PDF et images ne sont pas convertis pour le moment."
+            )
+        else:
             try:
-                uploaded_file.seek(0)
-                raw_df = pd.read_csv(uploaded_file, sep=None, engine="python", encoding="utf-8-sig", on_bad_lines="skip")
+                raw_df = pd.read_csv(uploaded_file, encoding="utf-8-sig")
             except Exception:
-                uploaded_file.seek(0)
-                raw_df = pd.read_csv(uploaded_file, sep=";", encoding="utf-8-sig", on_bad_lines="skip")
-        try:
-            converted = convert_tradingview_to_mvizion(raw_df)
-            if converted.empty:
-                st.error("Aucun trade valide trouve dans le fichier.")
-            else:
-                st.success(f"Importation de {append_trades(converted)} trades reussie.")
-                st.rerun()
-        except Exception:
-            st.error("Echec importation TradingView. Verifier le CSV.")
+                try:
+                    uploaded_file.seek(0)
+                    raw_df = pd.read_csv(
+                        uploaded_file,
+                        sep=None,
+                        engine="python",
+                        encoding="utf-8-sig",
+                        on_bad_lines="skip",
+                    )
+                except Exception:
+                    uploaded_file.seek(0)
+                    raw_df = pd.read_csv(uploaded_file, sep=";", encoding="utf-8-sig", on_bad_lines="skip")
+            try:
+                converted = convert_tradingview_to_mvizion(raw_df)
+                if converted.empty:
+                    st.error("Aucun trade valide trouve dans le fichier.")
+                else:
+                    st.success(f"Importation de {append_trades(converted)} trades reussie.")
+                    st.rerun()
+            except Exception:
+                st.error("Echec importation TradingView. Verifier le CSV.")
 
 if selected_compte == "Tous les comptes":
     trades = all_trades.copy()
@@ -523,6 +727,49 @@ else:
 
 if page == "Nouveau Trade":
     st.subheader("Nouveau Trade")
+
+    with st.container(border=True):
+        st.markdown("### Score d'exécution (0-20)")
+        ex1, ex2 = st.columns(2)
+        with ex1:
+            v_sizing = st.slider("Sizing", 0, 20, 10, key="v8_slider_sizing")
+            v_overtrading = st.slider("Over-trading", 0, 20, 0, key="v8_slider_overtrading")
+            v_sl = st.slider("Gestion SL", 0, 20, 10, key="v8_slider_sl")
+        with ex2:
+            v_bias = st.slider("Coherence Biais", 0, 20, 10, key="v8_slider_bias")
+            v_revenge = st.slider("Controle Revenge", 0, 20, 0, key="v8_slider_revenge")
+
+        exec_global = (
+            float(v_sizing)
+            + float(v_overtrading)
+            + float(v_sl)
+            + float(v_bias)
+            + float(v_revenge)
+        ) / 5.0
+        if exec_global > 15:
+            exec_color = _accent
+        elif exec_global >= 10:
+            exec_color = "#FFA500"
+        else:
+            exec_color = "#FF4B4B"
+        st.markdown(
+            f'<p style="margin:10px 0 14px 0;font-size:1.05rem;font-weight:600;color:{exec_color};">'
+            f"Score Global : {exec_global:.1f}/20</p>",
+            unsafe_allow_html=True,
+        )
+        st.number_input(
+            "High_Water_Mark",
+            min_value=0.0,
+            value=0.0,
+            step=10.0,
+            key="v8_high_water_mark",
+        )
+        st.file_uploader(
+            "Capture d'écran du graphique",
+            type=["png", "jpg", "jpeg"],
+            key="v8_trade_screenshot",
+        )
+
     with st.form("trade_form", clear_on_submit=True):
         top_left, top_right = st.columns([1.3, 1.1])
         with top_left:
@@ -603,33 +850,26 @@ if page == "Nouveau Trade":
             quantite = st.number_input("Quantite", min_value=0.0, value=0.0, step=0.01, key="trade_quantite")
             frais = st.number_input("Frais", min_value=0.0, value=0.0, step=0.01, key="trade_frais")
             sortie = st.selectbox("Sortie", ["SL", "TP", "BE", "TP Partiel"], key="trade_sortie")
-        st.markdown("### Score execution (0-20)")
-        s1, s2 = st.columns(2)
-        with s1:
-            sizing_score = st.slider("Sizing", 0, 20, 10, key="slider_sizing")
-            sl_score = st.slider("Gestion SL", 0, 20, 10, key="slider_sl")
-            revenge_score = st.slider("Controle Revenge", 0, 20, 0, key="slider_revenge")
-        with s2:
-            overtrading_score = st.slider("Over-trading", 0, 20, 0, key="slider_overtrading")
-            bias_score = st.slider("Coherence Biais", 0, 20, 10, key="slider_bias")
-            high_water_mark = st.number_input("High_Water_Mark", min_value=0.0, value=0.0, step=10.0, key="trade_high_water_mark")
-        trade_screenshot = st.file_uploader(
-            "Capture d'écran du graphique (1GB per file)",
-            type=["png", "jpg", "jpeg"],
-            key="trade_graph_screenshot",
-            help="1GB per file",
-        )
         submit = st.form_submit_button("Ajouter Trade", use_container_width=True)
     if submit:
-        if compte == "➕ Ajouter un compte":
+        sizing_score = float(st.session_state.get("v8_slider_sizing", 10))
+        overtrading_score = float(st.session_state.get("v8_slider_overtrading", 0))
+        sl_score = float(st.session_state.get("v8_slider_sl", 10))
+        bias_score = float(st.session_state.get("v8_slider_bias", 10))
+        revenge_score = float(st.session_state.get("v8_slider_revenge", 0))
+        exec_global_save = (sizing_score + overtrading_score + sl_score + bias_score + revenge_score) / 5.0
+        high_water_mark_saisie = float(st.session_state.get("v8_high_water_mark", 0.0))
+        shot = st.session_state.get("v8_trade_screenshot")
+
+        if compte == add_account_label:
             st.error("Sélectionne un compte valide ou crée-en un avant d'ajouter le trade.")
         elif quantite <= 0:
             st.error("La quantite doit etre superieure a zero.")
         else:
             profit = (prix_tp - prix_entree) * quantite - frais
-            etat_mental = infer_mental_state(float(sizing_score), float(sl_score), float(revenge_score), float(overtrading_score), float(bias_score))
+            etat_mental = infer_mental_state(sizing_score, sl_score, revenge_score, overtrading_score, bias_score)
             trade_id = f"{trade_date.strftime('%Y%m%d')}_{datetime.now().strftime('%H%M%S')}_{uuid.uuid4().hex[:8]}"
-            image_rel = save_screenshot(trade_screenshot, trade_id) if trade_screenshot else ""
+            image_rel = save_screenshot(shot, trade_id) if shot else ""
             existing_cap = float(account_settings.get(compte, {}).get("initial_capital", 10000.0))
             upsert_account(compte, float(profit_objectif_pct), float(max_daily_loss_usd_trade), existing_cap)
             save_trade(
@@ -655,7 +895,8 @@ if page == "Nouveau Trade":
                     "Revenge_Score": float(revenge_score),
                     "Overtrading_Score": float(overtrading_score),
                     "Bias_Score": float(bias_score),
-                    "High_Water_Mark": float(high_water_mark),
+                    "Execution_Score_Global": float(exec_global_save),
+                    "High_Water_Mark_Saisie": float(high_water_mark_saisie),
                     "Image": image_rel,
                 }
             )
@@ -915,9 +1156,30 @@ elif page == "Parametres":
     st.subheader("Parametres")
     st.caption("Gère les comptes enregistrés dans la feuille Accounts : consultation, mise à jour des limites et suppression.")
 
+    st.markdown('<div class="settings-card">', unsafe_allow_html=True)
+    st.markdown("#### Apparence (Mat'Sa)")
+    _font_choices = ["Playfair Display", "Open Sans", "Roboto"]
+    _font_ix = (
+        _font_choices.index(st.session_state.primary_font)
+        if st.session_state.primary_font in _font_choices
+        else 0
+    )
+    st.selectbox(
+        "Police du logo",
+        _font_choices,
+        index=_font_ix,
+        key="primary_font",
+    )
+    st.color_picker(
+        "Couleur d'accent (navigation, PnL positif, curseurs)",
+        key="accent_color",
+    )
+    st.caption("Les changements visuels s'appliquent après sauvegarde et rechargement de la page.")
+    st.markdown("</div>", unsafe_allow_html=True)
+
     accounts_df = load_accounts_from_sheet()
     st.markdown('<div class="settings-card">', unsafe_allow_html=True)
-    st.markdown("#### 📋 Liste des comptes")
+    st.markdown("#### Liste des comptes")
     if accounts_df.empty:
         st.info("Aucun compte enregistré dans la feuille Accounts.")
     else:
@@ -932,7 +1194,7 @@ elif page == "Parametres":
     st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown('<div class="settings-card">', unsafe_allow_html=True)
-    st.markdown("#### ✏️ Modifier un compte")
+    st.markdown("#### Modifier un compte")
     if accounts_df.empty:
         st.caption("Ajoute d'abord un compte depuis Nouveau Trade.")
     else:
@@ -954,7 +1216,7 @@ elif page == "Parametres":
             step=25.0,
             key="settings_edit_loss",
         )
-        if st.button("💾 Enregistrer les modifications", key="settings_save_account"):
+        if st.button("Enregistrer les modifications", key="settings_save_account"):
             existing_cap = float(accounts_df[accounts_df["Nom"].astype(str) == edit_name]["Initial_Capital"].iloc[-1]) if "Initial_Capital" in accounts_df.columns else 10000.0
             upsert_account(edit_name, float(edit_obj), float(edit_loss), existing_cap)
             st.success(f"Compte '{edit_name}' mis à jour.")
@@ -962,14 +1224,14 @@ elif page == "Parametres":
     st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown('<div class="settings-card">', unsafe_allow_html=True)
-    st.markdown("#### 🗑️ Supprimer un compte")
+    st.markdown("#### Supprimer un compte")
     if accounts_df.empty:
         st.caption("Aucun compte à supprimer.")
     else:
         names = accounts_df["Nom"].astype(str).tolist()
         del_name = st.selectbox("Compte à supprimer", names, key="settings_delete_account")
         confirm = st.checkbox(f"Confirmer la suppression définitive de '{del_name}'", key="settings_confirm_delete")
-        if st.button("🧨 Supprimer ce compte", key="settings_delete_btn"):
+        if st.button("Supprimer ce compte", key="settings_delete_btn"):
             if not confirm:
                 st.warning("Coche la confirmation avant de supprimer.")
             else:
@@ -980,6 +1242,16 @@ elif page == "Parametres":
                 else:
                     st.info("Compte introuvable ou déjà supprimé.")
     st.markdown("</div>", unsafe_allow_html=True)
+
+    if st.button("Sauvegarder", key="settings_save_btn"):
+        save_ui_settings(
+            {
+                "primary_font": str(st.session_state.get("primary_font", "Playfair Display")),
+                "accent_color": _safe_hex_color(str(st.session_state.get("accent_color", "#00FFA3"))),
+            }
+        )
+        st.success("Préférences d'interface enregistrées sur disque.")
+        st.rerun()
 
 elif page == "Mon Compte/Finance":
     st.subheader("Mon Compte/Finance - Gestion du capital")
