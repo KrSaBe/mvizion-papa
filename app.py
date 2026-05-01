@@ -370,17 +370,24 @@ ensure_csv_exists()
 st.markdown(
     """
     <style>
+        :root {
+            --sidebar-background-color: #0E1117 !important;
+        }
         .stApp { background: #050505; color: #FFFFFF; font-family: "Inter", sans-serif; }
-        [data-testid="stSidebar"] { background: #0E1117 !important; border-right: 1px solid #1f2937; padding-top: 0px !important; margin-top: 0px !important; }
+        [data-testid="stSidebar"] { background-color: #0E1117 !important; background: #0E1117 !important; border-right: 1px solid #1f2937; padding-top: 2rem !important; margin-top: 0px !important; }
         [data-testid="stSidebarContent"] {
             position: relative;
+            background-color: #0E1117 !important;
             background: #0E1117 !important;
-            padding-top: 0px !important;
+            padding-top: 2rem !important;
             margin-top: 0px !important;
             padding-bottom: 1.2rem !important;
         }
-        section[data-testid='stSidebar'] > div { padding-top: 0px !important; }
-        [data-testid="stSidebarContent"],
+        [data-testid="stSidebarUserContent"] {
+            background-color: #0E1117 !important;
+            background: #0E1117 !important;
+        }
+        section[data-testid='stSidebar'] > div { padding-top: 2rem !important; }
         [data-testid="stSidebarContent"] > div,
         [data-testid="stSidebar"] > div,
         [data-testid="stSidebar"] > div > div,
@@ -411,7 +418,7 @@ st.markdown(
             background-clip: text;
             color: transparent !important;
             -webkit-text-fill-color: transparent;
-            margin: 0 auto 30px auto !important;
+            margin: 0 auto 50px auto !important;
             padding: 25px 0 !important;
             white-space: nowrap;
             letter-spacing: 0.5px;
@@ -430,8 +437,11 @@ st.markdown(
             line-height: 1;
             pointer-events: none;
             z-index: 2;
-            color: #FCF6BA !important;
-            filter: drop-shadow(0 0 12px rgba(252, 246, 186, 0.8));
+            content: '✦' !important;
+            color: #FFD700 !important;
+            font-weight: bold !important;
+            text-shadow: 0 0 15px rgba(255, 215, 0, 0.9) !important;
+            filter: none !important;
             animation: twinkle 3s ease-in-out infinite;
         }
         .tv-logo::before {
