@@ -373,6 +373,21 @@ st.markdown(
         :root {
             --sidebar-background-color: #0E1117 !important;
         }
+        span[data-testid="stWidgetLabel"] p, .material-symbols-rounded, [data-testid="stMarkdownContainer"] p:empty {
+            display: none !important;
+            visibility: hidden !important;
+        }
+        span[data-testid="stWidgetLabel"] p:not(:empty),
+        div[data-testid="stWidgetLabel"] p:not(:empty) {
+            display: block !important;
+            visibility: visible !important;
+        }
+        [data-testid="stSidebar"] [data-testid="stExpander"],
+        [data-testid="stSidebar"] [data-testid="stExpander"] details,
+        [data-testid="stSidebar"] [data-testid="stExpander"] summary {
+            height: auto !important;
+            line-height: normal !important;
+        }
         .stApp { background: #050505; color: #FFFFFF; font-family: "Inter", sans-serif; }
         [data-testid="stSidebar"] { background-color: #0E1117 !important; background: #0E1117 !important; border-right: 1px solid #1f2937; padding-top: 0px !important; margin-top: 0px !important; }
         [data-testid="stSidebarContent"] {
@@ -410,30 +425,31 @@ st.markdown(
             text-align: center;
             font-size: 55px !important;
             font-style: italic !important;
-            font-family: "Playfair Display", serif;
-            font-weight: 900;
-            background: linear-gradient(180deg, #FFD700 0%, #BF953F 50%, #8C6D31 100%);
+            font-family: "Playfair Display", serif !important;
+            font-weight: 900 !important;
+            background: linear-gradient(180deg, #FFD700 0%, #BF953F 45%, #8C6D31 50%, #BF953F 55%, #FFD700 100%);
             -webkit-background-clip: text !important;
             background-clip: text;
             color: transparent !important;
             -webkit-text-fill-color: transparent !important;
+            filter: drop-shadow(0 0 1px rgba(255, 215, 0, 0.3));
             margin: -30px auto 20px auto !important;
             padding: 25px 0 !important;
             white-space: nowrap;
             letter-spacing: 0.5px;
             line-height: 0.9;
-            text-shadow: none !important;
             animation: none !important;
         }
         .tv-logo::before,
         .tv-logo::after {
             content: '✦';
             position: absolute;
-            font-size: 16px;
+            font-size: 14px;
             line-height: 1;
             color: #FFD700;
+            font-style: normal !important;
             pointer-events: none;
-            filter: drop-shadow(0 0 5px rgba(255, 215, 0, 0.5));
+            filter: none;
         }
         .tv-logo::before {
             top: -2px;
@@ -462,42 +478,39 @@ st.markdown(
         [data-testid="stSidebar"] [data-testid="stSelectbox"] {
             margin-top: 25px !important;
         }
-        [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] > label {
+        [data-testid="stSidebar"] div[role="radiogroup"] label {
+            border-left: 4px solid transparent !important;
+            color: #808495 !important;
+            padding: 10px 15px !important;
+            font-size: 14px !important;
+            text-transform: none !important;
+            font-weight: 500 !important;
+            background: transparent !important;
             margin-bottom: 8px !important;
             border-radius: 4px;
-            padding: 6px 8px 6px 10px !important;
-            color: #808495 !important;
-            background: transparent !important;
-            border-left: 4px solid transparent !important;
+            transition: all 0.3s ease;
         }
-        [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] > label[data-checked="true"],
-        [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] > label[aria-checked="true"],
-        [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] > label:has(input:checked) {
-            background-color: rgba(255, 255, 255, 0.05) !important;
+        [data-testid="stSidebar"] div[role="radiogroup"] label[data-checked="true"],
+        [data-testid="stSidebar"] div[role="radiogroup"] label[aria-checked="true"],
+        [data-testid="stSidebar"] div[role="radiogroup"] label:has(input:checked) {
+            background: rgba(255, 255, 255, 0.05) !important;
             border-left: 4px solid #00FFA3 !important;
-            border-radius: 4px;
             color: #FFFFFF !important;
+            padding-left: 15px !important;
+            transition: all 0.3s ease;
         }
-        [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] > label p {
+        [data-testid="stSidebar"] div[role="radiogroup"] label p {
             font-size: 14px !important;
-            letter-spacing: 1px !important;
-            text-transform: uppercase !important;
+            text-transform: none !important;
             font-weight: 500 !important;
+            letter-spacing: normal !important;
             color: inherit !important;
         }
-        [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] > label[data-checked="true"] p,
-        [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] > label[aria-checked="true"] p,
-        [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] > label:has(input:checked) p {
+        [data-testid="stSidebar"] div[role="radiogroup"] label[data-checked="true"] p,
+        [data-testid="stSidebar"] div[role="radiogroup"] label[aria-checked="true"] p,
+        [data-testid="stSidebar"] div[role="radiogroup"] label:has(input:checked) p {
             color: #FFFFFF !important;
             font-weight: 600 !important;
-        }
-        [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] > label:not([data-checked="true"]):not([aria-checked="true"]):not(:has(input:checked)) p {
-            color: #808495 !important;
-            font-weight: 500 !important;
-        }
-        [data-testid="stFileUploader"] .material-symbols-rounded,
-        [data-testid="stSidebar"] .material-symbols-rounded {
-            display: none !important;
         }
         [data-testid="stFileUploader"] button[kind="secondary"] {
             background-color: #262730 !important;
