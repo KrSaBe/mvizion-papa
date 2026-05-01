@@ -397,7 +397,7 @@ st.markdown(
             padding-top: 0px !important;
             margin-top: 0px !important;
         }
-        [data-testid="stSidebar"] * { font-size: 1.02rem !important; font-weight: 620 !important; color: #FFFFFF !important; font-family: "Inter", sans-serif !important; }
+        [data-testid="stSidebar"] * { font-size: 1.02rem !important; font-weight: 620 !important; font-family: "Inter", sans-serif !important; }
         [data-testid="stSidebar"] label, [data-testid="stSidebar"] p, [data-testid="stSidebar"] span {
             color: #E5E7EB !important;
             letter-spacing: 0.2px;
@@ -409,9 +409,10 @@ st.markdown(
             width: 100% !important;
             text-align: center;
             font-size: 55px !important;
+            font-style: italic !important;
+            font-family: "Playfair Display", serif;
             font-weight: 900;
-            font-style: normal;
-            background: linear-gradient(to bottom, #FCF6BA 0%, #BF953F 50%, #FCF6BA 100%);
+            background: linear-gradient(180deg, #FFD700 0%, #BF953F 50%, #8C6D31 100%);
             -webkit-background-clip: text !important;
             background-clip: text;
             color: transparent !important;
@@ -421,7 +422,6 @@ st.markdown(
             white-space: nowrap;
             letter-spacing: 0.5px;
             line-height: 0.9;
-            font-family: "Playfair Display", serif;
             text-shadow: none !important;
             animation: none !important;
         }
@@ -429,19 +429,19 @@ st.markdown(
         .tv-logo::after {
             content: '✦';
             position: absolute;
-            font-size: 18px;
+            font-size: 16px;
             line-height: 1;
-            color: #FCF6BA;
+            color: #FFD700;
             pointer-events: none;
-            opacity: 0.95;
+            filter: drop-shadow(0 0 5px rgba(255, 215, 0, 0.5));
         }
         .tv-logo::before {
-            top: -4px;
-            right: 14%;
+            top: -2px;
+            right: 10%;
         }
         .tv-logo::after {
-            bottom: -4px;
-            left: 14%;
+            bottom: -2px;
+            left: 10%;
         }
         [data-testid="stSidebar"] .stMarkdown {
             margin: 0px !important;
@@ -462,19 +462,47 @@ st.markdown(
         [data-testid="stSidebar"] [data-testid="stSelectbox"] {
             margin-top: 25px !important;
         }
-        [data-testid="stSidebar"] [data-testid="stRadio"] label p {
+        [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] > label {
+            margin-bottom: 8px !important;
+            border-radius: 4px;
+            padding: 6px 8px 6px 10px !important;
+            color: #808495 !important;
+            background: transparent !important;
+            border-left: 4px solid transparent !important;
+        }
+        [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] > label[data-checked="true"],
+        [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] > label[aria-checked="true"],
+        [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] > label:has(input:checked) {
+            background-color: rgba(255, 255, 255, 0.05) !important;
+            border-left: 4px solid #00FFA3 !important;
+            border-radius: 4px;
+            color: #FFFFFF !important;
+        }
+        [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] > label p {
             font-size: 14px !important;
             letter-spacing: 1px !important;
             text-transform: uppercase !important;
             font-weight: 500 !important;
-            color: #E0E0E0 !important;
+            color: inherit !important;
+        }
+        [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] > label[data-checked="true"] p,
+        [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] > label[aria-checked="true"] p,
+        [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] > label:has(input:checked) p {
+            color: #FFFFFF !important;
+            font-weight: 600 !important;
+        }
+        [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] > label:not([data-checked="true"]):not([aria-checked="true"]):not(:has(input:checked)) p {
+            color: #808495 !important;
+            font-weight: 500 !important;
         }
         [data-testid="stFileUploader"] .material-symbols-rounded,
         [data-testid="stSidebar"] .material-symbols-rounded {
-            font-size: 0 !important;
-            line-height: 0 !important;
-            width: 0 !important;
-            overflow: hidden !important;
+            display: none !important;
+        }
+        [data-testid="stFileUploader"] button[kind="secondary"] {
+            background-color: #262730 !important;
+            color: #FAFAFA !important;
+            border: 1px solid #3F3F46 !important;
         }
         .tv-card {
             background: linear-gradient(180deg, #121218 0%, #101015 100%);
