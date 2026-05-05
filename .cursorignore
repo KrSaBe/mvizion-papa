@@ -1,11 +1,15 @@
+﻿# Indexation / contexte — données volumineuses, binaires, dépôt
+.git/
+__pycache__/
+.streamlit/
+venv/
 *.csv
-
+*.png
+*.jpg
+*.jpeg
+*.svg
 *.parquet
-
 *.feather
-
 *.xlsx
-
 *.xls
-
 *.jsonl

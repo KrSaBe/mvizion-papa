@@ -1,1 +1,23 @@
-.streamlit/
+# Dépôt Git (indexation / outils)
+.git/
+
+# Python / env
+__pycache__/
+venv/
+*.py[cod]
+*$py.class
+
+# Streamlit (garde config.toml versionné si besoin)
+.streamlit/*
+!.streamlit/config.toml
+
+# Données & médias locaux
+*.csv
+*.png
+*.jpg
+*.jpeg
+*.svg
+*.parquet
+*.feather
+*.xlsx
+*.xls

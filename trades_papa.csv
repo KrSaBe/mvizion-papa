@@ -1,2 +1,18 @@
-Date,Actif,Type,Prix Entree,Prix Sortie,Quantite,Frais,Profit,Sortie,Session,Etat Mental,Biais Jour,Compte,Compte_Type,Sizing_Score,SL_Score,Revenge_Score,Overtrading_Score,Bias_Score,High_Water_Mark,Image
-2026-04-29,XAUUSD,BUY,3750.0,3675.0,2.0,1.0,-151.0,SL,NEW YORK,Neutre,Haussier,Compte 1,Funded,5.0,7.0,4.0,10.0,12.0,-151.0,
+﻿Date,Actif,Type,Setup,Prix Entree,Prix Sortie,Quantite,Frais,Profit,Sortie,Session,Etat Mental,Emotion,Biais Jour,Compte,Compte_Type,Profit_Objectif_Pct,Max_Daily_Loss_USD,Sizing_Score,SL_Score,Revenge_Score,Overtrading_Score,Bias_Score,Execution_Score_Global,High_Water_Mark_Saisie,High_Water_Mark,Image
+2026-05-02,NAS100,SELL,,"27758,29","27682,75","2,11","0,47",0,SL,NEW YORK,Frustre,Calme,Haussier,APEX TEST1,Eval,6,500,10,10,0,0,10,0.0,0.0,0,
+2026-05-02,NAS100,SELL,,25561,2584,"0,2","0,2",0,SL,OUT,Neutre,Calme,Haussier,APEX TEST1,Eval,6,500,13,13,10,14,10,0.0,0.0,0,assets/screenshots/trade_20260502_232027_f72350ea.png
+2026-05-04,MNQ1!,SELL,,"27782,75","27682,75",4,4,-404,TP,NEW YORK,Frustre,Calme,Haussier,APEX TEST1,Eval,6,500,10,10,0,0,10,0.0,0.0,0,
+2026-05-04,MNQ1!,SELL,,"27782,75","27682,75",4,4,-404,TP,NEW YORK,Neutre,Calme,Haussier,APEX TEST1,Eval,6,500,9,14,10,13,11,0.0,0.0,0,
+2026-05-04,MNQ2,BUY,,27580,28500,14,"0,5",0,TP,NEW YORK,Confiant,Calme,Baissier,APEX TEST1,Eval,7,525,13,18,20,15,1,0.0,0.0,0,
+2026-05-04,NAS100,BUY,,56418,67851,"0,21",0,0,TP,NEW YORK,Anxieux,Calme,Haussier,APEX TEST1,Eval,7,525,10,10,0,13,10,0.0,0.0,0,
+2026-05-04,MNQ1!,SELL,,"27782,75","27682,75",4,4,-404,TP,NEW YORK,Frustre,Calme,Haussier,APEX TEST1,Eval,6,500,10,10,0,0,10,0.0,0.0,0,
+2026-05-05,NAS100,BUY,,27000,"27845,64",2,1,0,TP,LONDON,Anxieux,Calme,Haussier,APEX TEST1,Eval,6,500,10,10,0,11,10,0.0,0.0,0,
+2026-05-05,MNQ1!,BUY,,"27548,91",28000,"0,48","0,5",0,TP,NEW YORK,Neutre,Calme,Haussier,APEX TEST1,Eval,6,500,7,15,9,13,17,0.0,0.0,0,
+2026-05-05,MNQ1!,BUY,,"27548,91",28000,"0,48","0,5",0,TP,NEW YORK,Neutre,Calme,Haussier,APEX TEST1,Eval,6,500,7,15,9,13,17,0.0,0.0,0,
+2026-05-05,MNQ1!,BUY,,"27548,91",28000,"0,48","0,5",0,TP,NEW YORK,Neutre,Calme,Haussier,APEX TEST1,Eval,6,500,7,15,9,13,17,0.0,0.0,0,
+2026-05-05,MNQ1!,BUY,,25227,25979,"1,15","0,5",0,TP,NEW YORK,Confiant,Calme,Haussier,APEX TEST1,Eval,6,500,12,17,14,16,13,0.0,0.0,0,
+2026-05-05,MNQ1!,BUY,,25227,25979,"1,15","0,5",0,TP,NEW YORK,Confiant,Calme,Haussier,APEX TEST1,Eval,6,500,12,17,14,16,13,0.0,0.0,0,
+2026-05-05,MNQ1!,BUY,,25227,25979,"1,15","0,5",0,TP,NEW YORK,Confiant,Calme,Haussier,APEX TEST1,Eval,6,500,12,17,14,16,13,0.0,0.0,0,
+2026-05-05,NAS100,BUY,,27000,"27845,64",2,1,0,TP,LONDON,Anxieux,Calme,Haussier,APEX TEST1,Eval,6,500,10,10,0,11,10,0.0,0.0,0,
+2026-04-30,DXY,BUY,,"1,2","1,3",1,"0,5",0,SL,LONDON,Neutre,Calme,Haussier,APEX2,Eval,10,500,8,9,8,8,10,0.0,0.0,0,assets/screenshots/trade_20260430_120239_90e7eb1e.png
+2026-05-01,MNQ1!,BUY,,26000,27000,1,"0,5",0,TP,LONDON,Anxieux,Calme,Haussier,APEX2,Eval,10,1000,10,10,6,0,10,0.0,0.0,0,

@@ -1,0 +1,11 @@
+[theme]
+base = "dark"
+primaryColor = "#3B82F6"
+backgroundColor = "#0E1117"
+secondaryBackgroundColor = "#1A1D24"
+textColor = "#E5E7EB"
+font = "sans serif"
+
+[server]
+# Taille max des fichiers uploadés (Mo). 1000 ≈ 1 Go.
+maxUploadSize = 1000
