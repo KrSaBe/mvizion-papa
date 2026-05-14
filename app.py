@@ -300,7 +300,10 @@ def matsa_sidebar_upload_translate_inject() -> None:
     const cleanDropzone = () => {
         try {
             const doc = window.parent.document;
-            const zones = doc.querySelectorAll('[data-testid="stFileUploadDropzone"], [data-testid="stFileUploaderDropzone"]');
+            const zones = doc.querySelectorAll(
+                '[data-testid="stSidebar"] [data-testid="stFileUploadDropzone"], '
+                + '[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"]'
+            );
             zones.forEach((zone) => {
                 // Bloque la traduction sur la zone et tous ses enfants
                 zone.setAttribute('translate', 'no');
@@ -1649,119 +1652,125 @@ st.markdown(
             padding-top: 0.15rem !important;
         }}
 
-        /* Sidebar — zone d'upload : bordure, fond semi-transparent, hover néon */
-        [data-testid="stSidebar"] [data-testid="stFileUploadDropzone"] {{
+        /* Sidebar — zone d'upload type « carte » (pleine largeur, hauteur confortable, style TradeVizion).
+           Tout est préfixé [data-testid="stSidebar"] pour ne pas casser les autres st.file_uploader (ex. capture). */
+        [data-testid="stSidebar"] [data-testid="stFileUploadDropzone"],
+        [data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] {{
             border: 1px dashed #2A2E39 !important;
-            border-radius: 8px !important;
-            background: rgba(22, 26, 37, 0.5) !important;
+            border-radius: 10px !important;
+            background: rgba(22, 26, 37, 0.72) !important;
+            min-height: 7.5rem !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            box-sizing: border-box !important;
+            padding: 0.85rem 0.75rem !important;
+            margin: 0 !important;
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: stretch !important;
+            justify-content: center !important;
             transition: border-color 0.22s ease, box-shadow 0.22s ease, background 0.22s ease !important;
         }}
-        [data-testid="stSidebar"] [data-testid="stFileUploadDropzone"]:hover {{
+        [data-testid="stSidebar"] [data-testid="stFileUploadDropzone"]:hover,
+        [data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"]:hover {{
             border-color: #00FFA3 !important;
             box-shadow: 0 0 0 1px rgba(0, 255, 163, 0.25) !important;
+            background: rgba(26, 31, 44, 0.85) !important;
         }}
-
-        /* ─── Uploader sidebar : méthode DÉFINITIVE ─── */
-        /* 1) Tout le contenu de la dropzone passe en font-size 0 + invisible + sans icône
-           (couvre aussi la variante récente stFileUploaderDropzone) */
-        [data-testid="stFileUploadDropzone"],
-        [data-testid="stFileUploaderDropzone"] {{
-            font-size: 0 !important;
-            line-height: 0 !important;
-            color: transparent !important;
-            -webkit-text-stroke: 0 !important;
-            -webkit-text-fill-color: transparent !important;
-            text-shadow: none !important;
-        }}
-        [data-testid="stFileUploadDropzone"] *:not(button):not(small):not(input),
-        [data-testid="stFileUploaderDropzone"] *:not(button):not(small):not(input) {{
-            font-size: 0 !important;
-            line-height: 0 !important;
-            color: transparent !important;
-            -webkit-text-stroke: 0 !important;
-            -webkit-text-fill-color: transparent !important;
-            text-shadow: none !important;
-            background: transparent !important;
-        }}
-        /* 2) Cache l'icône native (SVG cloud-upload) + tout bloc d'instructions */
-        [data-testid="stFileUploadDropzone"] svg,
-        [data-testid="stFileUploaderDropzone"] svg,
-        [data-testid="stFileUploadDropzone"] img,
-        [data-testid="stFileUploaderDropzone"] img,
-        [data-testid="stFileUploadDropzone"] [data-testid*="Instruction"],
-        [data-testid="stFileUploaderDropzone"] [data-testid*="Instruction"],
-        [data-testid="stFileUploadDropzone"] [data-testid*="instruction"],
-        [data-testid="stFileUploaderDropzone"] [data-testid*="instruction"] {{
+        /* Icône nuage + blocs d'instructions natifs (on garde bouton + small visibles) */
+        [data-testid="stSidebar"] [data-testid="stFileUploadDropzone"] svg,
+        [data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] svg,
+        [data-testid="stSidebar"] [data-testid="stFileUploadDropzone"] img,
+        [data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] img,
+        [data-testid="stSidebar"] [data-testid="stFileUploadDropzone"] [data-testid="stFileDropzoneInstructions"],
+        [data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] [data-testid="stFileDropzoneInstructions"],
+        [data-testid="stSidebar"] [data-testid="stFileUploadDropzone"] [data-testid*="Instruction"],
+        [data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] [data-testid*="Instruction"],
+        [data-testid="stSidebar"] [data-testid="stFileUploadDropzone"] [data-testid*="instruction"],
+        [data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] [data-testid*="instruction"] {{
             display: none !important;
             visibility: hidden !important;
             width: 0 !important;
             height: 0 !important;
+            overflow: hidden !important;
+            margin: 0 !important;
+            padding: 0 !important;
         }}
-        /* 3) Layout de la zone */
-        [data-testid="stFileUploadDropzone"] section > div,
-        [data-testid="stFileUploaderDropzone"] section > div {{
+        /* Colonne centrée, pleine largeur */
+        [data-testid="stSidebar"] [data-testid="stFileUploadDropzone"] section,
+        [data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] section {{
+            width: 100% !important;
+            margin: 0 !important;
+            flex: 1 1 auto !important;
+        }}
+        [data-testid="stSidebar"] [data-testid="stFileUploadDropzone"] section > div,
+        [data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] section > div {{
             display: flex !important;
             flex-direction: column !important;
-            align-items: flex-start !important;
-            gap: 6px !important;
+            align-items: center !important;
+            justify-content: center !important;
+            gap: 0.5rem !important;
+            width: 100% !important;
+            min-height: 4.5rem !important;
             position: relative !important;
         }}
-        /* 4) Rétablir UNIQUEMENT le bouton et le small avec taille et couleur lisibles */
-        [data-testid="stFileUploadDropzone"] button,
-        [data-testid="stFileUploaderDropzone"] button {{
-            font-size: 0.86rem !important;
-            line-height: 1.4 !important;
-            color: #E4E7EC !important;
-            -webkit-text-fill-color: #E4E7EC !important;
-        }}
-        [data-testid="stFileUploadDropzone"] button *,
-        [data-testid="stFileUploaderDropzone"] button * {{
-            font-size: 0.86rem !important;
-            line-height: 1.4 !important;
-            color: #E4E7EC !important;
-            -webkit-text-fill-color: #E4E7EC !important;
-        }}
-        [data-testid="stFileUploadDropzone"] small,
-        [data-testid="stFileUploaderDropzone"] small {{
-            font-size: 0.72rem !important;
-            line-height: 1.4 !important;
-            color: #848E9C !important;
-            -webkit-text-fill-color: #848E9C !important;
-        }}
-        [data-testid="stFileUploadDropzone"] small *,
-        [data-testid="stFileUploaderDropzone"] small * {{
-            font-size: 0.72rem !important;
-            line-height: 1.4 !important;
-            color: #848E9C !important;
-            -webkit-text-fill-color: #848E9C !important;
-        }}
-        [data-testid="stFileUploadDropzone"] button {{
-            color: #E4E7EC !important;
+        /* Bouton primaire façon ligne de menu (pleine largeur, lisible) */
+        [data-testid="stSidebar"] [data-testid="stFileUploadDropzone"] button,
+        [data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] button {{
+            font-size: 0.88rem !important;
+            font-weight: 600 !important;
+            line-height: 1.35 !important;
+            color: #F3F4F6 !important;
+            -webkit-text-fill-color: #F3F4F6 !important;
             position: relative !important;
             display: inline-flex !important;
             align-items: center !important;
             justify-content: center !important;
             gap: 0.35rem !important;
-            width: auto !important;
+            width: 100% !important;
             max-width: 100% !important;
-            flex: 0 0 auto !important;
+            min-height: 2.5rem !important;
+            padding: 0.55rem 0.85rem !important;
             box-sizing: border-box !important;
-            min-height: 2.25rem !important;
-            padding: 0.4rem 0.85rem !important;
+            border-radius: 8px !important;
+            border: 1px solid #374151 !important;
+            background: linear-gradient(180deg, rgba(55, 65, 81, 0.55) 0%, rgba(31, 41, 55, 0.85) 100%) !important;
             overflow: visible !important;
+            flex: 0 0 auto !important;
         }}
-        [data-testid="stFileUploadDropzone"] section > div > small {{
+        [data-testid="stSidebar"] [data-testid="stFileUploadDropzone"] button:hover,
+        [data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] button:hover {{
+            border-color: #4B5563 !important;
+            background: linear-gradient(180deg, rgba(75, 85, 99, 0.5) 0%, rgba(31, 41, 55, 0.95) 100%) !important;
+        }}
+        [data-testid="stSidebar"] [data-testid="stFileUploadDropzone"] button *,
+        [data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] button * {{
+            font-size: inherit !important;
+            line-height: inherit !important;
+            color: inherit !important;
+            -webkit-text-fill-color: inherit !important;
+        }}
+        [data-testid="stSidebar"] [data-testid="stFileUploadDropzone"] small,
+        [data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] small {{
+            font-size: 0.7rem !important;
+            line-height: 1.45 !important;
+            color: #9CA3AF !important;
+            -webkit-text-fill-color: #9CA3AF !important;
+            text-align: center !important;
             display: block !important;
-            position: relative !important;
-            max-width: 100% !important;
+            width: 100% !important;
             margin: 0 !important;
-            padding: 0 !important;
-            font-size: 0.72rem !important;
-            line-height: 1.4 !important;
-            color: #848E9C !important;
+            padding: 0 0.15rem !important;
             white-space: normal !important;
             word-break: break-word !important;
             visibility: visible !important;
+        }}
+        [data-testid="stSidebar"] [data-testid="stFileUploadDropzone"] small *,
+        [data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] small * {{
+            font-size: inherit !important;
+            line-height: inherit !important;
+            color: inherit !important;
+            -webkit-text-fill-color: inherit !important;
         }}
 
         /* App — fond type TradeVizion */
