@@ -260,11 +260,36 @@ def matsa_sidebar_upload_translate_inject() -> None:
         /^\s*Files\s*$/i,
         /^\s*Fichier\s*$/i,
         /^\s*Fichiers\s*$/i,
+        /^\s*un\s+fichier\s*$/i,
+        /^\s*une\s+fichier\s*$/i,
+        /^\s*a\s+file\s*$/i,
         /Drag and drop file/i,
+        /Drag and drop files/i,
         /Drag and drop here/i,
+        /Limit\s+\d+/i,
         /Glisser.*d.poser/i,
         /Faites glisser/i,
+        /D.poser.*fichier/i,
     ];
+    const shouldKeepUploadChild = (el) => {
+        if (!el || el.nodeType !== 1) return false;
+        if (el.tagName === 'BUTTON' || el.tagName === 'SMALL' || el.tagName === 'INPUT') return true;
+        if (el.querySelector('button, input[type=file], input[accept], small')) return true;
+        return false;
+    };
+    const parasiteTextInSidebarZone = (raw) => {
+        var t = (raw || '').replace(/\s+/g, ' ').trim();
+        if (!t) return false;
+        if (/^charger un fichier$/i.test(t)) return false;
+        if (/parcourir/i.test(t) && t.length < 40) return false;
+        if (TEXT_KILL_PATTERNS.some((re) => re.test(t))) return true;
+        if (/^un\s+fichier$/i.test(t)) return true;
+        if (/^une\s+fichier$/i.test(t)) return true;
+        if (/browse\s+files?/i.test(t)) return true;
+        if (/drag\s+and\s+drop/i.test(t)) return true;
+        if (/^file$/i.test(t) || /^files$/i.test(t)) return true;
+        return false;
+    };
     const installMetaNotranslate = () => {
         try {
             const doc = window.parent.document;
@@ -292,6 +317,7 @@ def matsa_sidebar_upload_translate_inject() -> None:
                 + '[data-testid="stSidebar"] [data-testid="stFileUploadDropzone"], '
                 + '[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"]').forEach((el) => {
                 el.setAttribute('translate', 'no');
+                el.setAttribute('lang', 'en');
                 el.classList.add('notranslate');
                 el.style.removeProperty('font-size');
             });
@@ -307,28 +333,49 @@ def matsa_sidebar_upload_translate_inject() -> None:
             zones.forEach((zone) => {
                 // Bloque la traduction sur la zone et tous ses enfants
                 zone.setAttribute('translate', 'no');
+                zone.setAttribute('lang', 'en');
                 zone.classList.add('notranslate');
+                // Masque tout enfant direct de la rangée d'upload SAUF bouton / small / input (structure Streamlit variable)
+                zone.querySelectorAll('section > div').forEach((row) => {
+                    row.querySelectorAll(':scope > *').forEach((child) => {
+                        if (shouldKeepUploadChild(child)) return;
+                        var ct = (child.textContent || '').replace(/\s+/g, ' ').trim();
+                        var hide = parasiteTextInSidebarZone(ct) || ct.length >= 80;
+                        if (!hide && ct.length > 0 && ct.length < 120) {
+                            hide = /\b(Mo|Go|Ko|MB|GB)\b|limite|limit|par\s+fichier|per\s+file/i.test(ct);
+                        }
+                        if (!hide) return;
+                        child.style.setProperty('display', 'none', 'important');
+                        child.style.setProperty('visibility', 'hidden', 'important');
+                        child.style.setProperty('opacity', '0', 'important');
+                        child.style.setProperty('pointer-events', 'none', 'important');
+                        child.style.setProperty('height', '0', 'important');
+                        child.style.setProperty('overflow', 'hidden', 'important');
+                        child.setAttribute('translate', 'no');
+                    });
+                });
                 // Cache toutes les icônes SVG natives
                 zone.querySelectorAll('svg').forEach((s) => {
                     s.style.display = 'none';
                     s.setAttribute('aria-hidden', 'true');
                 });
-                // Cache tout span/div/p qui contient un texte natif parasite
-                zone.querySelectorAll('span, div, p, label').forEach((el) => {
+                // Cache tout span/div/p/label dont le texte est uniquement une instruction parasite
+                zone.querySelectorAll('span, div, p, label, font').forEach((el) => {
                     if (el.tagName === 'BUTTON' || el.tagName === 'SMALL') return;
                     if (el.querySelector('button') || el.querySelector('small')) return;
-                    const txt = (el.textContent || '').trim();
+                    const txt = (el.textContent || '').replace(/\s+/g, ' ').trim();
                     if (!txt) return;
-                    if (TEXT_KILL_PATTERNS.some((re) => re.test(txt))) {
-                        el.style.display = 'none';
+                    if (parasiteTextInSidebarZone(txt)) {
+                        el.style.setProperty('display', 'none', 'important');
                         el.style.visibility = 'hidden';
                         el.style.width = '0';
                         el.style.height = '0';
                         el.style.fontSize = '0';
+                        el.style.opacity = '0';
                         el.setAttribute('translate', 'no');
                     }
                 });
-                // Force translate=no sur tous les enfants restants
+                // Force translate=no sur les descendants (évite les overlays de traduction)
                 zone.querySelectorAll('*').forEach((el) => {
                     el.setAttribute('translate', 'no');
                 });
@@ -1657,6 +1704,7 @@ st.markdown(
         [data-testid="stSidebar"] [data-testid="stFileUploadDropzone"],
         [data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] {{
             border: 1px dashed #2A2E39 !important;
+            border-left: 3px solid rgba(59, 130, 246, 0.45) !important;
             border-radius: 10px !important;
             background: rgba(22, 26, 37, 0.72) !important;
             min-height: 7.5rem !important;
@@ -1669,11 +1717,16 @@ st.markdown(
             flex-direction: column !important;
             align-items: stretch !important;
             justify-content: center !important;
-            transition: border-color 0.22s ease, box-shadow 0.22s ease, background 0.22s ease !important;
+            position: relative !important;
+            overflow: hidden !important;
+            isolation: isolate !important;
+            transition: border-color 0.22s ease, box-shadow 0.22s ease, background 0.22s ease,
+                border-left-color 0.22s ease !important;
         }}
         [data-testid="stSidebar"] [data-testid="stFileUploadDropzone"]:hover,
         [data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"]:hover {{
             border-color: #00FFA3 !important;
+            border-left-color: #3B82F6 !important;
             box-shadow: 0 0 0 1px rgba(0, 255, 163, 0.25) !important;
             background: rgba(26, 31, 44, 0.85) !important;
         }}
@@ -1723,6 +1776,7 @@ st.markdown(
             color: #F3F4F6 !important;
             -webkit-text-fill-color: #F3F4F6 !important;
             position: relative !important;
+            z-index: 2 !important;
             display: inline-flex !important;
             align-items: center !important;
             justify-content: center !important;
@@ -1764,6 +1818,8 @@ st.markdown(
             white-space: normal !important;
             word-break: break-word !important;
             visibility: visible !important;
+            position: relative !important;
+            z-index: 2 !important;
         }}
         [data-testid="stSidebar"] [data-testid="stFileUploadDropzone"] small *,
         [data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] small * {{
