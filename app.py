@@ -243,13 +243,43 @@ def matsa_sidebar_clocks() -> None:
 
 
 def matsa_sidebar_upload_translate_inject() -> None:
-    """Traduction FR sidebar : TreeWalker + intervalle (seule source de texte ; pas de pseudo-CSS).
+    """Sidebar uploader : suppression DOM des éléments natifs parasites ("FICHIER", icône, etc.)
+    + traduction des textes restants (bouton + ligne de limite).
 
-    Les nœuds déjà « Charger un fichier » sont ignorés pour éviter des réécritures inutiles.
+    Ne touche pas aux nœuds déjà traduits (« Charger un fichier »).
     """
     html_js = r"""
 <script>
 (function () {
+    const TEXT_KILL_PATTERNS = [
+        /^\s*File\s*$/i,
+        /^\s*Files\s*$/i,
+        /^\s*Fichier\s*$/i,
+        /^\s*Fichiers\s*$/i,
+        /Drag and drop file/i,
+        /Glisser.*d.poser/i,
+    ];
+    const cleanDropzone = () => {
+        try {
+            const doc = window.parent.document;
+            const zones = doc.querySelectorAll('[data-testid="stFileUploadDropzone"]');
+            zones.forEach((zone) => {
+                // Cache l'icône SVG native (cloud-upload)
+                zone.querySelectorAll('svg').forEach((s) => { s.style.display = 'none'; });
+                // Cache tout span/div/p qui contient un texte natif parasite
+                zone.querySelectorAll('span, div, p').forEach((el) => {
+                    // Ne touche pas au bouton ni à small
+                    if (el.tagName === 'BUTTON' || el.tagName === 'SMALL') return;
+                    if (el.querySelector('button') || el.querySelector('small')) return;
+                    const txt = (el.textContent || '').trim();
+                    if (!txt) return;
+                    if (TEXT_KILL_PATTERNS.some((re) => re.test(txt))) {
+                        el.style.display = 'none';
+                    }
+                });
+            });
+        } catch (e) { /* iframe / DOM */ }
+    };
     const forceTranslate = () => {
         try {
             const sidebar = window.parent.document.querySelector('[data-testid="stSidebar"]');
@@ -278,10 +308,11 @@ def matsa_sidebar_upload_translate_inject() -> None:
             }
         } catch (e) { /* iframe / DOM */ }
     };
-    const obs = new MutationObserver(forceTranslate);
+    const tick = () => { cleanDropzone(); forceTranslate(); };
+    const obs = new MutationObserver(tick);
     obs.observe(window.parent.document.body, { childList: true, subtree: true });
-    setInterval(forceTranslate, 500);
-    forceTranslate();
+    setInterval(tick, 400);
+    tick();
 })();
 </script>
 """
