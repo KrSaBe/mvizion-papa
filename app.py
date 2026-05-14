@@ -1576,20 +1576,27 @@ st.markdown(
             box-shadow: 0 0 0 1px rgba(0, 255, 163, 0.25) !important;
         }}
 
-        /* Uploader — layout (traduction uniquement via JS, pas de ::after / texte injecté en CSS) */
+        /* Uploader — layout */
         [data-testid="stFileUploadDropzone"] section > div {{
             display: flex !important;
             flex-direction: column !important;
             align-items: flex-start !important;
             gap: 6px !important;
             position: relative !important;
-            color: transparent !important;
+            color: transparent !important; /* Cache les textes orphelins */
         }}
-        /* Masquer le texte natif "Drag and drop file here" et l'icône nuage/fichier */
-        [data-testid="stFileUploadDropzone"] section > div > span,
-        [data-testid="stFileUploadDropzone"] section > div > svg,
-        [data-testid="stFileUploadDropzone"] section > div > div[data-testid="stMarkdownContainer"] {{
+        /* Cache TOUT par défaut (y compris l'icône, les spans et les textes natifs) */
+        [data-testid="stFileUploadDropzone"] section > div > * {{
             display: none !important;
+        }}
+        /* Ne réafficher QUE le bouton et la balise small */
+        [data-testid="stFileUploadDropzone"] section > div > button {{
+            display: inline-flex !important;
+            color: #E4E7EC !important; /* Rétablit la couleur */
+        }}
+        [data-testid="stFileUploadDropzone"] section > div > small {{
+            display: block !important;
+            color: #848E9C !important;
         }}
         [data-testid="stFileUploadDropzone"] button {{
             color: #E4E7EC !important;
