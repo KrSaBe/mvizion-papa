@@ -1584,6 +1584,9 @@ st.markdown(
             gap: 6px !important;
             position: relative !important;
         }}
+        [data-testid="stFileUploadDropzone"] section > div > div[data-testid="stMarkdownContainer"] {{
+            display: none !important;
+        }}
         [data-testid="stFileUploadDropzone"] button {{
             position: relative !important;
             display: inline-flex !important;
