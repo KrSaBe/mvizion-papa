@@ -246,7 +246,11 @@ def matsa_sidebar_upload_translate_inject() -> None:
     """Sidebar uploader : suppression DOM des éléments natifs parasites ("FICHIER", icône, etc.)
     + traduction des textes restants (bouton + ligne de limite).
 
-    Ne touche pas aux nœuds déjà traduits (« Charger un fichier »).
+    Stratégie définitive :
+      1. Force translate="no" sur toute la dropzone pour bloquer la traduction navigateur
+         (c'est ce qui crée le "FICHIER" géant fantôme dans Edge/Chrome FR).
+      2. Cache les nœuds natifs parasites (icône SVG, label "Drag and drop", etc.).
+      3. Traduit "Browse files" → "Charger un fichier", "per file" → "par fichier".
     """
     html_js = r"""
 <script>
@@ -257,25 +261,73 @@ def matsa_sidebar_upload_translate_inject() -> None:
         /^\s*Fichier\s*$/i,
         /^\s*Fichiers\s*$/i,
         /Drag and drop file/i,
+        /Drag and drop here/i,
         /Glisser.*d.poser/i,
+        /Faites glisser/i,
     ];
+    const installMetaNotranslate = () => {
+        try {
+            const doc = window.parent.document;
+            if (!doc.head) return;
+            if (doc.head.querySelector('meta[name="google"][content="notranslate"]')) return;
+            const meta = doc.createElement('meta');
+            meta.setAttribute('name', 'google');
+            meta.setAttribute('content', 'notranslate');
+            doc.head.appendChild(meta);
+            // Force aussi l'attribut translate=no sur <html>
+            if (doc.documentElement) {
+                doc.documentElement.setAttribute('translate', 'no');
+                doc.documentElement.classList.add('notranslate');
+            }
+        } catch (e) { /* iframe / DOM */ }
+    };
+    const blockTranslation = () => {
+        try {
+            const doc = window.parent.document;
+            // Bloque la traduction auto navigateur sur toute la sidebar uploader
+            doc.querySelectorAll('[data-testid="stSidebar"] [data-testid*="FileUpload"], '
+                + '[data-testid="stSidebar"] [data-testid*="fileUpload"], '
+                + '[data-testid="stSidebar"] [data-testid*="FileUploader"], '
+                + '[data-testid="stSidebar"] [data-testid="stFileUploader"], '
+                + '[data-testid="stSidebar"] [data-testid="stFileUploadDropzone"], '
+                + '[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"]').forEach((el) => {
+                el.setAttribute('translate', 'no');
+                el.classList.add('notranslate');
+                el.style.removeProperty('font-size');
+            });
+        } catch (e) { /* iframe / DOM */ }
+    };
     const cleanDropzone = () => {
         try {
             const doc = window.parent.document;
-            const zones = doc.querySelectorAll('[data-testid="stFileUploadDropzone"]');
+            const zones = doc.querySelectorAll('[data-testid="stFileUploadDropzone"], [data-testid="stFileUploaderDropzone"]');
             zones.forEach((zone) => {
-                // Cache l'icône SVG native (cloud-upload)
-                zone.querySelectorAll('svg').forEach((s) => { s.style.display = 'none'; });
+                // Bloque la traduction sur la zone et tous ses enfants
+                zone.setAttribute('translate', 'no');
+                zone.classList.add('notranslate');
+                // Cache toutes les icônes SVG natives
+                zone.querySelectorAll('svg').forEach((s) => {
+                    s.style.display = 'none';
+                    s.setAttribute('aria-hidden', 'true');
+                });
                 // Cache tout span/div/p qui contient un texte natif parasite
-                zone.querySelectorAll('span, div, p').forEach((el) => {
-                    // Ne touche pas au bouton ni à small
+                zone.querySelectorAll('span, div, p, label').forEach((el) => {
                     if (el.tagName === 'BUTTON' || el.tagName === 'SMALL') return;
                     if (el.querySelector('button') || el.querySelector('small')) return;
                     const txt = (el.textContent || '').trim();
                     if (!txt) return;
                     if (TEXT_KILL_PATTERNS.some((re) => re.test(txt))) {
                         el.style.display = 'none';
+                        el.style.visibility = 'hidden';
+                        el.style.width = '0';
+                        el.style.height = '0';
+                        el.style.fontSize = '0';
+                        el.setAttribute('translate', 'no');
                     }
+                });
+                // Force translate=no sur tous les enfants restants
+                zone.querySelectorAll('*').forEach((el) => {
+                    el.setAttribute('translate', 'no');
                 });
             });
         } catch (e) { /* iframe / DOM */ }
@@ -308,10 +360,12 @@ def matsa_sidebar_upload_translate_inject() -> None:
             }
         } catch (e) { /* iframe / DOM */ }
     };
-    const tick = () => { cleanDropzone(); forceTranslate(); };
-    const obs = new MutationObserver(tick);
-    obs.observe(window.parent.document.body, { childList: true, subtree: true });
-    setInterval(tick, 400);
+    const tick = () => { installMetaNotranslate(); blockTranslation(); cleanDropzone(); forceTranslate(); };
+    try {
+        const obs = new MutationObserver(tick);
+        obs.observe(window.parent.document.body, { childList: true, subtree: true });
+    } catch (e) { /* iframe / DOM */ }
+    setInterval(tick, 300);
     tick();
 })();
 </script>
@@ -1607,32 +1661,79 @@ st.markdown(
             box-shadow: 0 0 0 1px rgba(0, 255, 163, 0.25) !important;
         }}
 
-        /* Uploader — méthode nucléaire : on neutralise TOUS les textes/icônes natifs
-           via font-size:0 + suppression des SVG, puis on rétablit uniquement
-           le bouton et la balise <small> qu'on veut afficher. */
-        [data-testid="stFileUploadDropzone"] {{
-            font-size: 0 !important; /* Cache tous les textes natifs ("File", "Drag and drop file here", etc.) */
+        /* ─── Uploader sidebar : méthode DÉFINITIVE ─── */
+        /* 1) Tout le contenu de la dropzone passe en font-size 0 + invisible + sans icône
+           (couvre aussi la variante récente stFileUploaderDropzone) */
+        [data-testid="stFileUploadDropzone"],
+        [data-testid="stFileUploaderDropzone"] {{
+            font-size: 0 !important;
+            line-height: 0 !important;
             color: transparent !important;
+            -webkit-text-stroke: 0 !important;
+            -webkit-text-fill-color: transparent !important;
+            text-shadow: none !important;
         }}
+        [data-testid="stFileUploadDropzone"] *:not(button):not(small):not(input),
+        [data-testid="stFileUploaderDropzone"] *:not(button):not(small):not(input) {{
+            font-size: 0 !important;
+            line-height: 0 !important;
+            color: transparent !important;
+            -webkit-text-stroke: 0 !important;
+            -webkit-text-fill-color: transparent !important;
+            text-shadow: none !important;
+            background: transparent !important;
+        }}
+        /* 2) Cache l'icône native (SVG cloud-upload) + tout bloc d'instructions */
         [data-testid="stFileUploadDropzone"] svg,
-        [data-testid="stFileUploadDropzone"] [data-testid="stFileDropzoneInstructions"] {{
-            display: none !important; /* Cache l'icône cloud-upload + tout bloc d'instructions natif */
+        [data-testid="stFileUploaderDropzone"] svg,
+        [data-testid="stFileUploadDropzone"] img,
+        [data-testid="stFileUploaderDropzone"] img,
+        [data-testid="stFileUploadDropzone"] [data-testid*="Instruction"],
+        [data-testid="stFileUploaderDropzone"] [data-testid*="Instruction"],
+        [data-testid="stFileUploadDropzone"] [data-testid*="instruction"],
+        [data-testid="stFileUploaderDropzone"] [data-testid*="instruction"] {{
+            display: none !important;
+            visibility: hidden !important;
+            width: 0 !important;
+            height: 0 !important;
         }}
-        [data-testid="stFileUploadDropzone"] section > div {{
+        /* 3) Layout de la zone */
+        [data-testid="stFileUploadDropzone"] section > div,
+        [data-testid="stFileUploaderDropzone"] section > div {{
             display: flex !important;
             flex-direction: column !important;
             align-items: flex-start !important;
             gap: 6px !important;
             position: relative !important;
         }}
-        /* Rétablir UNIQUEMENT le bouton et le small (taille + couleur lisibles) */
-        [data-testid="stFileUploadDropzone"] button {{
+        /* 4) Rétablir UNIQUEMENT le bouton et le small avec taille et couleur lisibles */
+        [data-testid="stFileUploadDropzone"] button,
+        [data-testid="stFileUploaderDropzone"] button {{
             font-size: 0.86rem !important;
+            line-height: 1.4 !important;
             color: #E4E7EC !important;
+            -webkit-text-fill-color: #E4E7EC !important;
         }}
-        [data-testid="stFileUploadDropzone"] small {{
+        [data-testid="stFileUploadDropzone"] button *,
+        [data-testid="stFileUploaderDropzone"] button * {{
+            font-size: 0.86rem !important;
+            line-height: 1.4 !important;
+            color: #E4E7EC !important;
+            -webkit-text-fill-color: #E4E7EC !important;
+        }}
+        [data-testid="stFileUploadDropzone"] small,
+        [data-testid="stFileUploaderDropzone"] small {{
             font-size: 0.72rem !important;
+            line-height: 1.4 !important;
             color: #848E9C !important;
+            -webkit-text-fill-color: #848E9C !important;
+        }}
+        [data-testid="stFileUploadDropzone"] small *,
+        [data-testid="stFileUploaderDropzone"] small * {{
+            font-size: 0.72rem !important;
+            line-height: 1.4 !important;
+            color: #848E9C !important;
+            -webkit-text-fill-color: #848E9C !important;
         }}
         [data-testid="stFileUploadDropzone"] button {{
             color: #E4E7EC !important;
