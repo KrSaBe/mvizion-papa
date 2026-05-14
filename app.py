@@ -1576,26 +1576,31 @@ st.markdown(
             box-shadow: 0 0 0 1px rgba(0, 255, 163, 0.25) !important;
         }}
 
-        /* Uploader — layout */
+        /* Uploader — méthode nucléaire : on neutralise TOUS les textes/icônes natifs
+           via font-size:0 + suppression des SVG, puis on rétablit uniquement
+           le bouton et la balise <small> qu'on veut afficher. */
+        [data-testid="stFileUploadDropzone"] {{
+            font-size: 0 !important; /* Cache tous les textes natifs ("File", "Drag and drop file here", etc.) */
+            color: transparent !important;
+        }}
+        [data-testid="stFileUploadDropzone"] svg,
+        [data-testid="stFileUploadDropzone"] [data-testid="stFileDropzoneInstructions"] {{
+            display: none !important; /* Cache l'icône cloud-upload + tout bloc d'instructions natif */
+        }}
         [data-testid="stFileUploadDropzone"] section > div {{
             display: flex !important;
             flex-direction: column !important;
             align-items: flex-start !important;
             gap: 6px !important;
             position: relative !important;
-            color: transparent !important; /* Cache les textes orphelins */
         }}
-        /* Cache TOUT par défaut (y compris l'icône, les spans et les textes natifs) */
-        [data-testid="stFileUploadDropzone"] section > div > * {{
-            display: none !important;
+        /* Rétablir UNIQUEMENT le bouton et le small (taille + couleur lisibles) */
+        [data-testid="stFileUploadDropzone"] button {{
+            font-size: 0.86rem !important;
+            color: #E4E7EC !important;
         }}
-        /* Ne réafficher QUE le bouton et la balise small */
-        [data-testid="stFileUploadDropzone"] section > div > button {{
-            display: inline-flex !important;
-            color: #E4E7EC !important; /* Rétablit la couleur */
-        }}
-        [data-testid="stFileUploadDropzone"] section > div > small {{
-            display: block !important;
+        [data-testid="stFileUploadDropzone"] small {{
+            font-size: 0.72rem !important;
             color: #848E9C !important;
         }}
         [data-testid="stFileUploadDropzone"] button {{
