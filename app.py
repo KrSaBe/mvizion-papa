@@ -1583,11 +1583,16 @@ st.markdown(
             align-items: flex-start !important;
             gap: 6px !important;
             position: relative !important;
+            color: transparent !important;
         }}
+        /* Masquer le texte natif "Drag and drop file here" et l'icône nuage/fichier */
+        [data-testid="stFileUploadDropzone"] section > div > span,
+        [data-testid="stFileUploadDropzone"] section > div > svg,
         [data-testid="stFileUploadDropzone"] section > div > div[data-testid="stMarkdownContainer"] {{
             display: none !important;
         }}
         [data-testid="stFileUploadDropzone"] button {{
+            color: #E4E7EC !important;
             position: relative !important;
             display: inline-flex !important;
             align-items: center !important;
