@@ -1290,7 +1290,10 @@ st.markdown(
             background-clip: text !important;
             -webkit-text-fill-color: transparent !important;
             color: transparent !important;
-            filter: drop-shadow(0 1px 0 rgba(0,0,0,0.45)) drop-shadow(0 0 12px rgba(255, 215, 0, 0.22));
+            filter:
+                drop-shadow(0 1px 0 rgba(0, 0, 0, 0.5))
+                drop-shadow(0 0 18px rgba(255, 215, 0, 0.55))
+                drop-shadow(0 0 36px rgba(255, 200, 90, 0.35)) !important;
             will-change: background-position;
             transform: translateZ(0);
             backface-visibility: hidden;
@@ -1301,7 +1304,11 @@ st.markdown(
             font-size: 16px;
             font-style: normal !important;
             color: #ffd700;
-            text-shadow: 0 0 8px rgba(255, 215, 0, 0.55);
+            text-shadow:
+                0 0 10px rgba(255, 215, 0, 0.95),
+                0 0 22px rgba(255, 200, 100, 0.65),
+                0 0 34px rgba(255, 180, 60, 0.4) !important;
+            filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.85)) !important;
             -webkit-text-fill-color: #ffd700;
             pointer-events: none;
         }}
@@ -1544,8 +1551,10 @@ st.markdown(
         [data-testid="stFileUploaderDropzone"] button {{
             position: relative !important;
             display: inline-flex !important;
+            flex-direction: row !important;
             align-items: center !important;
             justify-content: center !important;
+            gap: 0.4rem !important;
             box-sizing: border-box !important;
             min-height: 2.35rem !important;
             padding: 0.5rem 0.85rem !important;
@@ -1554,11 +1563,16 @@ st.markdown(
             color: transparent !important;
             -webkit-text-fill-color: transparent !important;
             text-shadow: none !important;
-            overflow: hidden !important;
+            overflow: visible !important;
         }}
-        [data-testid="stFileUploadDropzone"] button *,
-        [data-testid="stFileUploaderDropzone"] button * {{
+        [data-testid="stFileUploadDropzone"] button *:not(input[type="file"]),
+        [data-testid="stFileUploaderDropzone"] button *:not(input[type="file"]) {{
+            position: absolute !important;
+            width: 0 !important;
+            height: 0 !important;
+            overflow: hidden !important;
             opacity: 0 !important;
+            pointer-events: none !important;
             color: transparent !important;
             -webkit-text-fill-color: transparent !important;
         }}
@@ -1574,21 +1588,35 @@ st.markdown(
             z-index: 4 !important;
             font-size: 1rem !important;
         }}
+        [data-testid="stFileUploadDropzone"] button::before,
+        [data-testid="stFileUploaderDropzone"] button::before {{
+            content: "download" !important;
+            font-family: "Material Symbols Outlined" !important;
+            font-weight: normal !important;
+            font-style: normal !important;
+            font-size: 1.18rem !important;
+            line-height: 1 !important;
+            color: #F3F4F6 !important;
+            -webkit-text-fill-color: #F3F4F6 !important;
+            font-variation-settings: "FILL" 0, "wght" 500, "GRAD" 0, "opsz" 24 !important;
+            pointer-events: none !important;
+            position: relative !important;
+            z-index: 2 !important;
+            display: inline-block !important;
+        }}
         [data-testid="stFileUploadDropzone"] button::after,
         [data-testid="stFileUploaderDropzone"] button::after {{
             content: "Téléverser" !important;
-            position: absolute !important;
-            inset: 0 !important;
-            display: flex !important;
+            position: relative !important;
+            display: inline-flex !important;
             align-items: center !important;
-            justify-content: center !important;
             font-size: 0.87rem !important;
             font-weight: 600 !important;
             line-height: 1.35 !important;
             color: #F3F4F6 !important;
             -webkit-text-fill-color: #F3F4F6 !important;
             pointer-events: none !important;
-            z-index: 1 !important;
+            z-index: 2 !important;
         }}
         [data-testid="stFileUploadDropzone"] small,
         [data-testid="stFileUploaderDropzone"] small {{
@@ -1671,7 +1699,7 @@ st.markdown(
             border-radius: 8px !important;
             border: 1px solid #374151 !important;
             background: linear-gradient(180deg, rgba(55, 65, 81, 0.55) 0%, rgba(31, 41, 55, 0.85) 100%) !important;
-            overflow: hidden !important;
+            overflow: visible !important;
             flex: 0 0 auto !important;
         }}
         [data-testid="stSidebar"] [data-testid="stFileUploadDropzone"] button:hover,
