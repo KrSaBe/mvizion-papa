@@ -250,8 +250,8 @@ def matsa_sidebar_upload_translate_inject() -> None:
       1. translate="no" + lang="en" sur la dropzone (limite Edge / Chrome FR).
       2. Masquer ciblé : balises <font> (Edge), spans dont le seul texte est « UN FICHIER », etc.
          Les conteneurs qui ENFANTS le bouton ET un fantôme ne sont plus ignorés : on nettoie l'intérieur.
-      3. Libellé bouton : « Parcourir… » (sans « un fichier ») pour éviter la traduction partielle
-         « a file » → « UN FICHIER » par-dessus le vrai texte.
+      3. Libellé bouton : « Choisir » (sans « parcourir » / « browse ») pour limiter les calques
+         de traduction Edge (ex. « PARCOURIR » en majuscules par-dessus « Parcourir… »).
     """
     html_js = r"""
 <script>
@@ -281,7 +281,12 @@ def matsa_sidebar_upload_translate_inject() -> None:
     const parasiteTextInSidebarZone = (raw) => {
         var t = (raw || '').replace(/\s+/g, ' ').trim();
         if (!t) return false;
-        if (/^parcourir/i.test(t) && t.length < 40) return false;
+        if (/^choisir$/i.test(t)) return false;
+        if (/^parcourir/i.test(t) && t.length < 48) {
+            if (/[…]|\.\.\./.test(t)) return false;
+            return true;
+        }
+        if (/^PARCOURIR+$/i.test(t.replace(/\s/g, ''))) return true;
         if (/^charger un fichier$/i.test(t)) return false;
         if (TEXT_KILL_PATTERNS.some((re) => re.test(t))) return true;
         if (/^un\s+fichier$/i.test(t)) return true;
@@ -314,11 +319,14 @@ def matsa_sidebar_upload_translate_inject() -> None:
                 var t = n.nodeValue;
                 if (!t || !String(t).trim()) continue;
                 var nt = t;
-                if (/browse\s+files/gi.test(nt)) nt = nt.replace(/Browse files/gi, 'Parcourir…');
-                if (/\bupload\b/gi.test(nt) && !/parcourir/i.test(nt)) nt = nt.replace(/\bUpload\b/gi, 'Parcourir…');
-                if (/charger\s+un\s+fichier/gi.test(nt)) nt = nt.replace(/Charger un fichier/gi, 'Parcourir…');
+                if (/browse\s+files/gi.test(nt)) nt = nt.replace(/Browse files/gi, 'Choisir');
+                if (/\bupload\b/gi.test(nt) && !/choisir/i.test(nt)) nt = nt.replace(/\bUpload\b/gi, 'Choisir');
+                if (/charger\s+un\s+fichier/gi.test(nt)) nt = nt.replace(/Charger un fichier/gi, 'Choisir');
+                if (/parcourir/gi.test(nt)) nt = nt.replace(/Parcourir…?|Parcourir\.{1,3}/gi, 'Choisir');
                 var tr = nt.replace(/\s+/g, ' ').trim();
                 if (/^un\s+fichier$/i.test(tr) || /^a\s+file$/i.test(tr) || /^une\s+fichier$/i.test(tr)) nt = '';
+                if (/^PARCOURIR+$/i.test(tr.replace(/\s/g, ''))) nt = '';
+                if (/^parcourir$/i.test(tr) && !/[…]|\.\.\./.test(nt)) nt = '';
                 if (nt !== t) n.nodeValue = nt;
             }
         });
@@ -388,7 +396,7 @@ def matsa_sidebar_upload_translate_inject() -> None:
                     if (el.closest('button') || el.closest('small')) return;
                     var txt = (el.textContent || '').replace(/\s+/g, ' ').trim();
                     if (!txt || txt.length > 64) return;
-                    if (parasiteTextInSidebarZone(txt) || /^un\s+fichier$/i.test(txt)) hideEl(el);
+                    if (parasiteTextInSidebarZone(txt) || /^un\s+fichier$/i.test(txt) || /^PARCOURIR+$/i.test(txt.replace(/\s/g, ''))) hideEl(el);
                 });
                 // Cache toutes les icônes SVG natives
                 zone.querySelectorAll('svg').forEach((s) => {
@@ -411,7 +419,8 @@ def matsa_sidebar_upload_translate_inject() -> None:
                     if (!tr) continue;
                     var par = tn.parentElement;
                     if (!par || par.closest('button') || par.closest('small')) continue;
-                    if (/^un\s+fichier$/i.test(tr) || /^a\s+file$/i.test(tr) || /^une\s+fichier$/i.test(tr)) {
+                    if (/^un\s+fichier$/i.test(tr) || /^a\s+file$/i.test(tr) || /^une\s+fichier$/i.test(tr)
+                            || /^PARCOURIR+$/i.test(tr.replace(/\s/g, '')) || /^parcourir$/i.test(tr)) {
                         hideEl(par);
                     }
                 }
@@ -436,15 +445,16 @@ def matsa_sidebar_upload_translate_inject() -> None:
                     var t = node.nodeValue;
                     if (!t || !t.trim()) continue;
                     var trimmed = t.trim();
-                    if (trimmed === 'Parcourir…' || trimmed === 'Parcourir...') continue;
+                    if (trimmed === 'Choisir') continue;
                     var nt = t;
-                    if (nt.indexOf('Browse files') !== -1) nt = nt.replace(/Browse files/gi, 'Parcourir…');
-                    if (/\bUpload\b/i.test(nt) && nt.indexOf('Parcourir') === -1) {
-                        nt = nt.replace(/\bUpload\b/gi, 'Parcourir…');
+                    if (nt.indexOf('Browse files') !== -1) nt = nt.replace(/Browse files/gi, 'Choisir');
+                    if (/\bUpload\b/i.test(nt) && nt.indexOf('Choisir') === -1) {
+                        nt = nt.replace(/\bUpload\b/gi, 'Choisir');
                     }
                     if (nt.indexOf('Charger un fichier') !== -1) {
-                        nt = nt.replace(/Charger un fichier/gi, 'Parcourir…');
+                        nt = nt.replace(/Charger un fichier/gi, 'Choisir');
                     }
+                    if (/parcourir/gi.test(nt)) nt = nt.replace(/Parcourir…?|Parcourir\.{1,3}/gi, 'Choisir');
                     if (nt.indexOf('per file') !== -1) {
                         nt = nt.replace(/(\d+)\s*GB?\s*per\s*file/gi, 'Max $1 Go par fichier');
                         nt = nt.replace(/\s*per\s*file/gi, ' par fichier');
