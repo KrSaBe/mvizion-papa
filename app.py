@@ -242,122 +242,6 @@ def matsa_sidebar_clocks() -> None:
     components.html(html_sidebar_clocks, height=148, scrolling=False, width=None)
 
 
-def matsa_sidebar_upload_translate_inject() -> None:
-    """Traduit les libelles anglais des ``st.file_uploader`` (Browse files, Upload, etc.)
-    en francais pour toute l'application. Doit etre appele **en fin de script** pour que le DOM
-    contienne aussi les uploaders des pages (ex. capture d'ecran sur Nouveau Trade).
-
-    Masque les calques typiques d'Edge (balises ``<font>``, doublons tout en majuscules).
-    """
-    html_js = r"""
-<script>
-(function () {
-    const DROP = '[data-testid="stFileUploadDropzone"], [data-testid="stFileUploaderDropzone"]';
-    const toFr = (s) => {
-        var nt = s;
-        nt = nt.replace(/\bParcourir(\u2026|…|\.{1,3})?\b/gi, 'Téléverser');
-        nt = nt.replace(/\bBrowse files\b/gi, 'Téléverser');
-        nt = nt.replace(/\bBrowse file\b/gi, 'Téléverser');
-        nt = nt.replace(/\bUpload file\b/gi, 'Téléverser');
-        nt = nt.replace(/\bUpload\b/gi, 'Téléverser');
-        nt = nt.replace(/Drag and drop file here/gi, 'Glisser-déposer le fichier ici');
-        nt = nt.replace(/Drag and drop files here/gi, 'Glisser-déposer les fichiers ici');
-        nt = nt.replace(/Drag and drop/gi, 'Glisser-déposer');
-        nt = nt.replace(/(\d+)\s*GB?\s*per\s*file/gi, 'max. $1 Go par fichier');
-        nt = nt.replace(/\bper file\b/gi, 'par fichier');
-        nt = nt.replace(/\bLimit\b/gi, 'Limite');
-        return nt;
-    };
-    const stripAcc = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    const hideEl = (el) => {
-        if (!el) return;
-        el.style.setProperty('display', 'none', 'important');
-        el.style.setProperty('visibility', 'hidden', 'important');
-        el.style.setProperty('opacity', '0', 'important');
-        el.style.setProperty('pointer-events', 'none', 'important');
-        el.style.setProperty('position', 'absolute', 'important');
-        el.style.setProperty('width', '0', 'important');
-        el.style.setProperty('height', '0', 'important');
-        el.style.setProperty('overflow', 'hidden', 'important');
-        el.style.setProperty('font-size', '0', 'important');
-    };
-    const markZones = (doc) => {
-        doc.querySelectorAll(DROP).forEach((z) => {
-            z.setAttribute('translate', 'no');
-            z.setAttribute('lang', 'fr');
-            z.classList.add('notranslate');
-        });
-    };
-    const replaceText = (doc) => {
-        doc.querySelectorAll(DROP).forEach((root) => {
-            const w = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
-            let n;
-            while ((n = w.nextNode())) {
-                var t = n.nodeValue;
-                if (!t || !String(t).trim()) continue;
-                var nt = toFr(t);
-                if (nt !== t) n.nodeValue = nt;
-            }
-        });
-    };
-    const forEachDropzone = (doc, fn) => {
-        doc.querySelectorAll(DROP).forEach(fn);
-    };
-    const hideEdgeFonts = (doc) => {
-        forEachDropzone(doc, (root) => {
-            root.querySelectorAll('font').forEach((f) => hideEl(f));
-        });
-    };
-    const hideAllCapsGhost = (doc) => {
-        const ghost = /^(CHOISIR|CHOSIR|PARCOURIR|UN FICHIER|UNFICHIER|TÉLÉVERSER|TELEVERSER|BROWSE|UPLOAD|FILES?)$/i;
-        const ghostFold = /^(CHOISIR|PARCOURIR|UNFICHIER|TELEVERSER|BROWSE|UPLOAD|FILES?|FILE)$/i;
-        forEachDropzone(doc, (root) => {
-            root.querySelectorAll('span, div, p, i, b, em').forEach((el) => {
-                if (el.closest('small')) return;
-                if (el.closest('button')) return;
-                var t = (el.textContent || '').replace(/\s+/g, ' ').trim();
-                if (!t || t.length > 64) return;
-                if (ghost.test(t)) hideEl(el);
-                else if (t === t.toUpperCase() && t.length >= 4 && t.length <= 22 && /[A-ZÀ-Ÿ]/.test(t)) {
-                    var f = stripAcc(t).toUpperCase();
-                    if (ghostFold.test(f)) hideEl(el);
-                }
-            });
-        });
-    };
-    const hideCapsInsideButtons = (doc) => {
-        forEachDropzone(doc, (root) => {
-            root.querySelectorAll('button span, button font, button i, button b, button em').forEach((el) => {
-                var t = (el.textContent || '').replace(/\s+/g, ' ').trim();
-                if (!t || t.length > 40) return;
-                if (t === t.toUpperCase() && t.length >= 4 && /[A-ZÀ-Ÿ]/.test(t)) {
-                    var f = stripAcc(t).toUpperCase();
-                    if (/TELEVERSER|PARCOURIR|CHOISIR|UNFICHIER|BROWSE|UPLOAD|FILES?|FILE/.test(f)) hideEl(el);
-                }
-            });
-        });
-    };
-    const tick = () => {
-        try {
-            const doc = window.parent.document;
-            markZones(doc);
-            replaceText(doc);
-            hideEdgeFonts(doc);
-            hideAllCapsGhost(doc);
-            hideCapsInsideButtons(doc);
-        } catch (e) { /* iframe */ }
-    };
-    try {
-        new MutationObserver(tick).observe(window.parent.document.body, { childList: true, subtree: true });
-    } catch (e) { /* */ }
-    setInterval(tick, 400);
-    tick();
-})();
-</script>
-"""
-    components.html(html_js, height=0, scrolling=False)
-
-
 def _settings_panel_body() -> None:
     """Réglages Mat'Sa + feuille Accounts (ex-page Paramètres), réutilisable dans Mon Compte."""
     st.caption(
@@ -1634,8 +1518,95 @@ st.markdown(
             padding-top: 0.15rem !important;
         }}
 
-        /* Sidebar — zone d'upload type « carte » (pleine largeur, hauteur confortable, style TradeVizion).
-           Tout est préfixé [data-testid="stSidebar"] pour ne pas casser les autres st.file_uploader (ex. capture). */
+        /* --- Tous les ``st.file_uploader`` : libellé « Téléverser » en CSS uniquement (pas de mutation JS du DOM React).
+           Le texte anglais reste pour l'accessibilité mais est invisible ; ``::after`` affiche le libellé français. --- */
+        [data-testid="stFileUploadDropzone"] font,
+        [data-testid="stFileUploaderDropzone"] font {{
+            display: none !important;
+        }}
+        [data-testid="stFileUploadDropzone"] svg,
+        [data-testid="stFileUploaderDropzone"] svg {{
+            display: none !important;
+        }}
+        [data-testid="stFileUploadDropzone"] [data-testid="stFileDropzoneInstructions"],
+        [data-testid="stFileUploaderDropzone"] [data-testid="stFileDropzoneInstructions"],
+        [data-testid="stFileUploadDropzone"] [data-testid*="Instruction"],
+        [data-testid="stFileUploaderDropzone"] [data-testid*="Instruction"],
+        [data-testid="stFileUploadDropzone"] [data-testid*="instruction"],
+        [data-testid="stFileUploaderDropzone"] [data-testid*="instruction"] {{
+            display: none !important;
+        }}
+        [data-testid="stFileUploadDropzone"] section > div,
+        [data-testid="stFileUploaderDropzone"] section > div {{
+            position: relative !important;
+        }}
+        [data-testid="stFileUploadDropzone"] button,
+        [data-testid="stFileUploaderDropzone"] button {{
+            position: relative !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            box-sizing: border-box !important;
+            min-height: 2.35rem !important;
+            padding: 0.5rem 0.85rem !important;
+            font-size: 0 !important;
+            line-height: 0 !important;
+            color: transparent !important;
+            -webkit-text-fill-color: transparent !important;
+            text-shadow: none !important;
+            overflow: hidden !important;
+        }}
+        [data-testid="stFileUploadDropzone"] button *,
+        [data-testid="stFileUploaderDropzone"] button * {{
+            opacity: 0 !important;
+            color: transparent !important;
+            -webkit-text-fill-color: transparent !important;
+        }}
+        [data-testid="stFileUploadDropzone"] button input[type="file"],
+        [data-testid="stFileUploaderDropzone"] button input[type="file"] {{
+            opacity: 0 !important;
+            cursor: pointer !important;
+            position: absolute !important;
+            inset: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            min-height: 2.35rem !important;
+            z-index: 4 !important;
+            font-size: 1rem !important;
+        }}
+        [data-testid="stFileUploadDropzone"] button::after,
+        [data-testid="stFileUploaderDropzone"] button::after {{
+            content: "Téléverser" !important;
+            position: absolute !important;
+            inset: 0 !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            font-size: 0.87rem !important;
+            font-weight: 600 !important;
+            line-height: 1.35 !important;
+            color: #F3F4F6 !important;
+            -webkit-text-fill-color: #F3F4F6 !important;
+            pointer-events: none !important;
+            z-index: 1 !important;
+        }}
+        [data-testid="stFileUploadDropzone"] small,
+        [data-testid="stFileUploaderDropzone"] small {{
+            font-size: 0.7rem !important;
+            line-height: 1.45 !important;
+            color: #9CA3AF !important;
+            -webkit-text-fill-color: #9CA3AF !important;
+            opacity: 1 !important;
+        }}
+        [data-testid="stFileUploadDropzone"] small *,
+        [data-testid="stFileUploaderDropzone"] small * {{
+            font-size: inherit !important;
+            color: inherit !important;
+            -webkit-text-fill-color: inherit !important;
+            opacity: 1 !important;
+        }}
+
+        /* Sidebar — zone d'upload type « carte » (décor ; libellé du bouton = règles globales ci-dessus). */
         [data-testid="stSidebar"] [data-testid="stFileUploadDropzone"],
         [data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] {{
             border: 1px dashed #2A2E39 !important;
@@ -1665,36 +1636,6 @@ st.markdown(
             box-shadow: 0 0 0 1px rgba(0, 255, 163, 0.25) !important;
             background: rgba(26, 31, 44, 0.85) !important;
         }}
-        /* Calques de traduction Edge (<font>) */
-        [data-testid="stSidebar"] [data-testid="stFileUploadDropzone"] font,
-        [data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] font {{
-            display: none !important;
-            visibility: hidden !important;
-            width: 0 !important;
-            height: 0 !important;
-            overflow: hidden !important;
-            font-size: 0 !important;
-            line-height: 0 !important;
-            opacity: 0 !important;
-            pointer-events: none !important;
-        }}
-        [data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] svg,
-        [data-testid="stSidebar"] [data-testid="stFileUploadDropzone"] img,
-        [data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] img,
-        [data-testid="stSidebar"] [data-testid="stFileUploadDropzone"] [data-testid="stFileDropzoneInstructions"],
-        [data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] [data-testid="stFileDropzoneInstructions"],
-        [data-testid="stSidebar"] [data-testid="stFileUploadDropzone"] [data-testid*="Instruction"],
-        [data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] [data-testid*="Instruction"],
-        [data-testid="stSidebar"] [data-testid="stFileUploadDropzone"] [data-testid*="instruction"],
-        [data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] [data-testid*="instruction"] {{
-            display: none !important;
-            visibility: hidden !important;
-            width: 0 !important;
-            height: 0 !important;
-            overflow: hidden !important;
-            margin: 0 !important;
-            padding: 0 !important;
-        }}
         /* Colonne centrée, pleine largeur */
         [data-testid="stSidebar"] [data-testid="stFileUploadDropzone"] section,
         [data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] section {{
@@ -1713,14 +1654,9 @@ st.markdown(
             min-height: 4.5rem !important;
             position: relative !important;
         }}
-        /* Bouton primaire façon ligne de menu (pleine largeur, lisible) */
+        /* Sidebar : bouton import = même carte (ne pas rétablir le texte anglais : le libellé FR vient du bloc global ``::after``). */
         [data-testid="stSidebar"] [data-testid="stFileUploadDropzone"] button,
         [data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] button {{
-            font-size: 0.88rem !important;
-            font-weight: 600 !important;
-            line-height: 1.35 !important;
-            color: #F3F4F6 !important;
-            -webkit-text-fill-color: #F3F4F6 !important;
             position: relative !important;
             z-index: 2 !important;
             display: inline-flex !important;
@@ -1735,20 +1671,13 @@ st.markdown(
             border-radius: 8px !important;
             border: 1px solid #374151 !important;
             background: linear-gradient(180deg, rgba(55, 65, 81, 0.55) 0%, rgba(31, 41, 55, 0.85) 100%) !important;
-            overflow: visible !important;
+            overflow: hidden !important;
             flex: 0 0 auto !important;
         }}
         [data-testid="stSidebar"] [data-testid="stFileUploadDropzone"] button:hover,
         [data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] button:hover {{
             border-color: #4B5563 !important;
             background: linear-gradient(180deg, rgba(75, 85, 99, 0.5) 0%, rgba(31, 41, 55, 0.95) 100%) !important;
-        }}
-        [data-testid="stSidebar"] [data-testid="stFileUploadDropzone"] button *,
-        [data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] button * {{
-            font-size: inherit !important;
-            line-height: inherit !important;
-            color: inherit !important;
-            -webkit-text-fill-color: inherit !important;
         }}
         [data-testid="stSidebar"] [data-testid="stFileUploadDropzone"] small,
         [data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] small {{
@@ -3620,6 +3549,4 @@ elif page == "Mon Compte":
             width="stretch",
             hide_index=True,
         )
-# Traduction FR des libellés natifs des file_uploader (toute l'app) — en fin de script pour inclure le DOM des pages.
-matsa_sidebar_upload_translate_inject()
 st.caption(f"Trades chargés : {len(st.session_state.df)}")
