@@ -255,6 +255,7 @@ def matsa_sidebar_upload_translate_inject() -> None:
     const DROP = '[data-testid="stFileUploadDropzone"], [data-testid="stFileUploaderDropzone"]';
     const toFr = (s) => {
         var nt = s;
+        nt = nt.replace(/\bParcourir(\u2026|…|\.{1,3})?\b/gi, 'Téléverser');
         nt = nt.replace(/\bBrowse files\b/gi, 'Téléverser');
         nt = nt.replace(/\bBrowse file\b/gi, 'Téléverser');
         nt = nt.replace(/\bUpload file\b/gi, 'Téléverser');
@@ -266,6 +267,19 @@ def matsa_sidebar_upload_translate_inject() -> None:
         nt = nt.replace(/\bper file\b/gi, 'par fichier');
         nt = nt.replace(/\bLimit\b/gi, 'Limite');
         return nt;
+    };
+    const stripAcc = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const hideEl = (el) => {
+        if (!el) return;
+        el.style.setProperty('display', 'none', 'important');
+        el.style.setProperty('visibility', 'hidden', 'important');
+        el.style.setProperty('opacity', '0', 'important');
+        el.style.setProperty('pointer-events', 'none', 'important');
+        el.style.setProperty('position', 'absolute', 'important');
+        el.style.setProperty('width', '0', 'important');
+        el.style.setProperty('height', '0', 'important');
+        el.style.setProperty('overflow', 'hidden', 'important');
+        el.style.setProperty('font-size', '0', 'important');
     };
     const markZones = (doc) => {
         doc.querySelectorAll(DROP).forEach((z) => {
@@ -286,27 +300,41 @@ def matsa_sidebar_upload_translate_inject() -> None:
             }
         });
     };
+    const forEachDropzone = (doc, fn) => {
+        doc.querySelectorAll(DROP).forEach(fn);
+    };
     const hideEdgeFonts = (doc) => {
-        doc.querySelectorAll(DROP + ' font').forEach((f) => {
-            f.style.setProperty('display', 'none', 'important');
-            f.style.setProperty('visibility', 'hidden', 'important');
-            f.style.setProperty('opacity', '0', 'important');
+        forEachDropzone(doc, (root) => {
+            root.querySelectorAll('font').forEach((f) => hideEl(f));
         });
     };
     const hideAllCapsGhost = (doc) => {
         const ghost = /^(CHOISIR|CHOSIR|PARCOURIR|UN FICHIER|UNFICHIER|TÉLÉVERSER|TELEVERSER|BROWSE|UPLOAD|FILES?)$/i;
-        doc.querySelectorAll(
-            DROP + ' span, ' + DROP + ' div, ' + DROP + ' p, ' + DROP + ' i, ' + DROP + ' b'
-        ).forEach((el) => {
-            if (el.closest('button') || el.closest('small')) return;
-            if (el.querySelector('button') || el.querySelector('small')) return;
-            var t = (el.textContent || '').replace(/\s+/g, ' ').trim();
-            if (!t || t.length > 64) return;
-            if (ghost.test(t)) {
-                el.style.setProperty('display', 'none', 'important');
-                el.style.setProperty('visibility', 'hidden', 'important');
-                el.style.setProperty('opacity', '0', 'important');
-            }
+        const ghostFold = /^(CHOISIR|PARCOURIR|UNFICHIER|TELEVERSER|BROWSE|UPLOAD|FILES?|FILE)$/i;
+        forEachDropzone(doc, (root) => {
+            root.querySelectorAll('span, div, p, i, b, em').forEach((el) => {
+                if (el.closest('small')) return;
+                if (el.closest('button')) return;
+                var t = (el.textContent || '').replace(/\s+/g, ' ').trim();
+                if (!t || t.length > 64) return;
+                if (ghost.test(t)) hideEl(el);
+                else if (t === t.toUpperCase() && t.length >= 4 && t.length <= 22 && /[A-ZÀ-Ÿ]/.test(t)) {
+                    var f = stripAcc(t).toUpperCase();
+                    if (ghostFold.test(f)) hideEl(el);
+                }
+            });
+        });
+    };
+    const hideCapsInsideButtons = (doc) => {
+        forEachDropzone(doc, (root) => {
+            root.querySelectorAll('button span, button font, button i, button b, button em').forEach((el) => {
+                var t = (el.textContent || '').replace(/\s+/g, ' ').trim();
+                if (!t || t.length > 40) return;
+                if (t === t.toUpperCase() && t.length >= 4 && /[A-ZÀ-Ÿ]/.test(t)) {
+                    var f = stripAcc(t).toUpperCase();
+                    if (/TELEVERSER|PARCOURIR|CHOISIR|UNFICHIER|BROWSE|UPLOAD|FILES?|FILE/.test(f)) hideEl(el);
+                }
+            });
         });
     };
     const tick = () => {
@@ -316,6 +344,7 @@ def matsa_sidebar_upload_translate_inject() -> None:
             replaceText(doc);
             hideEdgeFonts(doc);
             hideAllCapsGhost(doc);
+            hideCapsInsideButtons(doc);
         } catch (e) { /* iframe */ }
     };
     try {
