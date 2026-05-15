@@ -247,10 +247,11 @@ def matsa_sidebar_upload_translate_inject() -> None:
     + traduction des textes restants (bouton + ligne de limite).
 
     Stratégie définitive :
-      1. Force translate="no" sur toute la dropzone pour bloquer la traduction navigateur
-         (c'est ce qui crée le "FICHIER" géant fantôme dans Edge/Chrome FR).
-      2. Cache les nœuds natifs parasites (icône SVG, label "Drag and drop", etc.).
-      3. Traduit "Browse files" → "Charger un fichier", "per file" → "par fichier".
+      1. translate="no" + lang="en" sur la dropzone (limite Edge / Chrome FR).
+      2. Masquer ciblé : balises <font> (Edge), spans dont le seul texte est « UN FICHIER », etc.
+         Les conteneurs qui ENFANTS le bouton ET un fantôme ne sont plus ignorés : on nettoie l'intérieur.
+      3. Libellé bouton : « Parcourir… » (sans « un fichier ») pour éviter la traduction partielle
+         « a file » → « UN FICHIER » par-dessus le vrai texte.
     """
     html_js = r"""
 <script>
@@ -280,15 +281,47 @@ def matsa_sidebar_upload_translate_inject() -> None:
     const parasiteTextInSidebarZone = (raw) => {
         var t = (raw || '').replace(/\s+/g, ' ').trim();
         if (!t) return false;
+        if (/^parcourir/i.test(t) && t.length < 40) return false;
         if (/^charger un fichier$/i.test(t)) return false;
-        if (/parcourir/i.test(t) && t.length < 40) return false;
         if (TEXT_KILL_PATTERNS.some((re) => re.test(t))) return true;
         if (/^un\s+fichier$/i.test(t)) return true;
         if (/^une\s+fichier$/i.test(t)) return true;
+        if (/^unfichier$/i.test(t.replace(/\s/g, ''))) return true;
         if (/browse\s+files?/i.test(t)) return true;
         if (/drag\s+and\s+drop/i.test(t)) return true;
         if (/^file$/i.test(t) || /^files$/i.test(t)) return true;
         return false;
+    };
+    const hideEl = (el) => {
+        if (!el) return;
+        el.style.setProperty('display', 'none', 'important');
+        el.style.setProperty('visibility', 'hidden', 'important');
+        el.style.setProperty('opacity', '0', 'important');
+        el.style.setProperty('pointer-events', 'none', 'important');
+        el.style.setProperty('position', 'absolute', 'important');
+        el.style.setProperty('width', '0', 'important');
+        el.style.setProperty('height', '0', 'important');
+        el.style.setProperty('overflow', 'hidden', 'important');
+        el.style.setProperty('font-size', '0', 'important');
+        el.setAttribute('translate', 'no');
+    };
+    const normalizeUploadButtons = (zone) => {
+        const doc = window.parent.document;
+        zone.querySelectorAll('button').forEach((btn) => {
+            const tw = doc.createTreeWalker(btn, NodeFilter.SHOW_TEXT, null);
+            let n;
+            while ((n = tw.nextNode())) {
+                var t = n.nodeValue;
+                if (!t || !String(t).trim()) continue;
+                var nt = t;
+                if (/browse\s+files/gi.test(nt)) nt = nt.replace(/Browse files/gi, 'Parcourir…');
+                if (/\bupload\b/gi.test(nt) && !/parcourir/i.test(nt)) nt = nt.replace(/\bUpload\b/gi, 'Parcourir…');
+                if (/charger\s+un\s+fichier/gi.test(nt)) nt = nt.replace(/Charger un fichier/gi, 'Parcourir…');
+                var tr = nt.replace(/\s+/g, ' ').trim();
+                if (/^un\s+fichier$/i.test(tr) || /^a\s+file$/i.test(tr) || /^une\s+fichier$/i.test(tr)) nt = '';
+                if (nt !== t) n.nodeValue = nt;
+            }
+        });
     };
     const installMetaNotranslate = () => {
         try {
@@ -335,6 +368,8 @@ def matsa_sidebar_upload_translate_inject() -> None:
                 zone.setAttribute('translate', 'no');
                 zone.setAttribute('lang', 'en');
                 zone.classList.add('notranslate');
+                // Edge injecte souvent des <font> pour la traduction : toujours masquer dans la dropzone
+                zone.querySelectorAll('font').forEach((f) => { hideEl(f); });
                 // Masque tout enfant direct de la rangée d'upload SAUF bouton / small / input (structure Streamlit variable)
                 zone.querySelectorAll('section > div').forEach((row) => {
                     row.querySelectorAll(':scope > *').forEach((child) => {
@@ -345,36 +380,41 @@ def matsa_sidebar_upload_translate_inject() -> None:
                             hide = /\b(Mo|Go|Ko|MB|GB)\b|limite|limit|par\s+fichier|per\s+file/i.test(ct);
                         }
                         if (!hide) return;
-                        child.style.setProperty('display', 'none', 'important');
-                        child.style.setProperty('visibility', 'hidden', 'important');
-                        child.style.setProperty('opacity', '0', 'important');
-                        child.style.setProperty('pointer-events', 'none', 'important');
-                        child.style.setProperty('height', '0', 'important');
-                        child.style.setProperty('overflow', 'hidden', 'important');
-                        child.setAttribute('translate', 'no');
+                        hideEl(child);
                     });
+                });
+                // À l'intérieur des lignes : petits nœuds « UN FICHIER » même si le parent contient aussi un button
+                zone.querySelectorAll('section > div span, section > div i, section > div b, section > div em, section > div font').forEach((el) => {
+                    if (el.closest('button') || el.closest('small')) return;
+                    var txt = (el.textContent || '').replace(/\s+/g, ' ').trim();
+                    if (!txt || txt.length > 64) return;
+                    if (parasiteTextInSidebarZone(txt) || /^un\s+fichier$/i.test(txt)) hideEl(el);
                 });
                 // Cache toutes les icônes SVG natives
                 zone.querySelectorAll('svg').forEach((s) => {
                     s.style.display = 'none';
                     s.setAttribute('aria-hidden', 'true');
                 });
-                // Cache tout span/div/p/label dont le texte est uniquement une instruction parasite
+                // Cache tout span/div/p/label dont le texte est uniquement une instruction parasite (sans bouton dedans)
                 zone.querySelectorAll('span, div, p, label, font').forEach((el) => {
                     if (el.tagName === 'BUTTON' || el.tagName === 'SMALL') return;
                     if (el.querySelector('button') || el.querySelector('small')) return;
                     const txt = (el.textContent || '').replace(/\s+/g, ' ').trim();
                     if (!txt) return;
-                    if (parasiteTextInSidebarZone(txt)) {
-                        el.style.setProperty('display', 'none', 'important');
-                        el.style.visibility = 'hidden';
-                        el.style.width = '0';
-                        el.style.height = '0';
-                        el.style.fontSize = '0';
-                        el.style.opacity = '0';
-                        el.setAttribute('translate', 'no');
-                    }
+                    if (parasiteTextInSidebarZone(txt)) hideEl(el);
                 });
+                normalizeUploadButtons(zone);
+                const tw2 = doc.createTreeWalker(zone, NodeFilter.SHOW_TEXT, null);
+                let tn;
+                while ((tn = tw2.nextNode())) {
+                    var tr = (tn.nodeValue || '').replace(/\s+/g, ' ').trim();
+                    if (!tr) continue;
+                    var par = tn.parentElement;
+                    if (!par || par.closest('button') || par.closest('small')) continue;
+                    if (/^un\s+fichier$/i.test(tr) || /^a\s+file$/i.test(tr) || /^une\s+fichier$/i.test(tr)) {
+                        hideEl(par);
+                    }
+                }
                 // Force translate=no sur les descendants (évite les overlays de traduction)
                 zone.querySelectorAll('*').forEach((el) => {
                     el.setAttribute('translate', 'no');
@@ -384,30 +424,34 @@ def matsa_sidebar_upload_translate_inject() -> None:
     };
     const forceTranslate = () => {
         try {
-            const sidebar = window.parent.document.querySelector('[data-testid="stSidebar"]');
-            if (!sidebar) return;
-            const walker = window.parent.document.createTreeWalker(
-                sidebar,
-                NodeFilter.SHOW_TEXT,
-                null
+            const doc = window.parent.document;
+            const zones = doc.querySelectorAll(
+                '[data-testid="stSidebar"] [data-testid="stFileUploadDropzone"], '
+                + '[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"]'
             );
-            let node;
-            while ((node = walker.nextNode())) {
-                var t = node.nodeValue;
-                if (!t || !t.trim()) continue;
-                var trimmed = t.trim();
-                if (trimmed === 'Charger un fichier') continue;
-                var nt = t;
-                if (nt.indexOf('Browse files') !== -1) nt = nt.replace(/Browse files/gi, 'Parcourir…');
-                if (/\bUpload\b/i.test(nt) && nt.indexOf('Charger un fichier') === -1) {
-                    nt = nt.replace(/\bUpload\b/gi, 'Charger un fichier');
+            zones.forEach((dropRoot) => {
+                const walker = doc.createTreeWalker(dropRoot, NodeFilter.SHOW_TEXT, null);
+                let node;
+                while ((node = walker.nextNode())) {
+                    var t = node.nodeValue;
+                    if (!t || !t.trim()) continue;
+                    var trimmed = t.trim();
+                    if (trimmed === 'Parcourir…' || trimmed === 'Parcourir...') continue;
+                    var nt = t;
+                    if (nt.indexOf('Browse files') !== -1) nt = nt.replace(/Browse files/gi, 'Parcourir…');
+                    if (/\bUpload\b/i.test(nt) && nt.indexOf('Parcourir') === -1) {
+                        nt = nt.replace(/\bUpload\b/gi, 'Parcourir…');
+                    }
+                    if (nt.indexOf('Charger un fichier') !== -1) {
+                        nt = nt.replace(/Charger un fichier/gi, 'Parcourir…');
+                    }
+                    if (nt.indexOf('per file') !== -1) {
+                        nt = nt.replace(/(\d+)\s*GB?\s*per\s*file/gi, 'Max $1 Go par fichier');
+                        nt = nt.replace(/\s*per\s*file/gi, ' par fichier');
+                    }
+                    if (nt !== t) node.nodeValue = nt;
                 }
-                if (nt.indexOf('per file') !== -1) {
-                    nt = nt.replace(/(\d+)\s*GB?\s*per\s*file/gi, 'Max $1 Go par fichier');
-                    nt = nt.replace(/\s*per\s*file/gi, ' par fichier');
-                }
-                if (nt !== t) node.nodeValue = nt;
-            }
+            });
         } catch (e) { /* iframe / DOM */ }
     };
     const tick = () => { installMetaNotranslate(); blockTranslation(); cleanDropzone(); forceTranslate(); };
@@ -1730,8 +1774,19 @@ st.markdown(
             box-shadow: 0 0 0 1px rgba(0, 255, 163, 0.25) !important;
             background: rgba(26, 31, 44, 0.85) !important;
         }}
-        /* Icône nuage + blocs d'instructions natifs (on garde bouton + small visibles) */
-        [data-testid="stSidebar"] [data-testid="stFileUploadDropzone"] svg,
+        /* Calques de traduction Edge (<font>) */
+        [data-testid="stSidebar"] [data-testid="stFileUploadDropzone"] font,
+        [data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] font {{
+            display: none !important;
+            visibility: hidden !important;
+            width: 0 !important;
+            height: 0 !important;
+            overflow: hidden !important;
+            font-size: 0 !important;
+            line-height: 0 !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+        }}
         [data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] svg,
         [data-testid="stSidebar"] [data-testid="stFileUploadDropzone"] img,
         [data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] img,
